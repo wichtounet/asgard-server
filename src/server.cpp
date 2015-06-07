@@ -9,23 +9,24 @@
 #include<sys/types.h>
 #include<unistd.h>
 
+namespace {
+
 static const std::size_t UNIX_PATH_MAX = 108;
+
+char buffer[4096];
 
 void connection_handler(int connection_fd){
     std::cout << "asgard: New connection received" << std::endl;
 
-    int nbytes;
-    char buffer[4096];
-    nbytes = read(connection_fd, buffer, 4096);
-    buffer[nbytes] = 0;
-
-    printf("MESSAGE FROM CLIENT: %s\n", buffer);
-
-    nbytes = snprintf(buffer, 256, "hello from the server");
-    write(connection_fd, buffer, nbytes);
+    while((nbytes = read(connection_fd, buffer, 4096)) > 0){
+        buffer[nbytes] = 0;
+        std::cout << "asgard: Received message: " << buffer << std::endl;
+    }
 
     close(connection_fd);
 }
+
+} //end of anonymous namespace
 
 int main(){
     //Open the socket
