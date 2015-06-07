@@ -15,12 +15,14 @@
 #include<sys/un.h>
 #include<sys/types.h>
 #include<unistd.h>
+#include<signal.h>
 
 #include <wiringPi.h>
 
 namespace {
 
-static const std::size_t UNIX_PATH_MAX = 108;
+int socket_fd;
+const std::size_t UNIX_PATH_MAX = 108;
 
 char buffer[4096];
 
@@ -36,15 +38,29 @@ void connection_handler(int connection_fd){
     close(connection_fd);
 }
 
+void terminate(int /*signo*/){
+    digitalWrite(1, LOW);
+
+    close(socket_fd);
+    unlink("/tmp/asgard_socket");
+
+    abort();
+}
+
+
 } //end of anonymous namespace
 
 int main(){
+    //Register signals for "proper" shutdown
+    signal(SIGTERM, terminate);
+    signal(SIGINT, terminate);
+
     wiringPiSetup();
     pinMode(1, OUTPUT);
     digitalWrite(1, HIGH);
 
     //Open the socket
-    auto socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if(socket_fd < 0){
         printf("socket() failed\n");
         return 1;
@@ -77,5 +93,6 @@ int main(){
 
     close(socket_fd);
     unlink("/tmp/asgard_socket");
+
     return 0;
 }
