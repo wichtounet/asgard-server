@@ -9,6 +9,8 @@
 #include<sys/types.h>
 #include<unistd.h>
 
+static const std::size_t UNIX_PATH_MAX = 108;
+
 void connection_handler(int connection_fd){
     std::cout << "asgard: New connection received" << std::endl;
 
