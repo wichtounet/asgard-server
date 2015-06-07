@@ -5,8 +5,8 @@ default: release
 include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
-CXX_FLAGS += -pedantic
-LD_FLAGS  += -llirc_client
+CXX_FLAGS += -pedantic -pthread
+LD_FLAGS  += -llirc_client -pthread
 
 $(eval $(call auto_folder_compile,src))
 $(eval $(call auto_add_executable,server))
