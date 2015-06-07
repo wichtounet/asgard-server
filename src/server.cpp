@@ -18,6 +18,7 @@ char buffer[4096];
 void connection_handler(int connection_fd){
     std::cout << "asgard: New connection received" << std::endl;
 
+    int nbytes;
     while((nbytes = read(connection_fd, buffer, 4096)) > 0){
         buffer[nbytes] = 0;
         std::cout << "asgard: Received message: " << buffer << std::endl;
