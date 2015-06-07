@@ -6,7 +6,7 @@ include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
 CXX_FLAGS += -pedantic -pthread
-LD_FLAGS  += -llirc_client -pthread
+LD_FLAGS  += -llirc_client -lwiringPi -pthread
 
 $(eval $(call auto_folder_compile,src))
 $(eval $(call auto_add_executable,server))
@@ -18,7 +18,7 @@ debug: debug_server
 all: release release_debug debug
 
 run: release
-	./release/bin/server
+	sudo ./release/bin/server
 
 clean: base_clean
 

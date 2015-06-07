@@ -16,6 +16,8 @@
 #include<sys/types.h>
 #include<unistd.h>
 
+#include <wiringPi.h>
+
 namespace {
 
 static const std::size_t UNIX_PATH_MAX = 108;
@@ -37,6 +39,10 @@ void connection_handler(int connection_fd){
 } //end of anonymous namespace
 
 int main(){
+    wiringPiSetup();
+    pinMode(1, OUTPUT);
+    digitalWrite(1, HIGH);
+
     //Open the socket
     auto socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if(socket_fd < 0){
