@@ -7,6 +7,7 @@
 
 #include<iostream>
 #include<thread>
+#include<vector>
 
 #include<cstdio>
 #include<cstring>
@@ -26,8 +27,21 @@ int socket_fd;
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t gpio_led_pin = 1;
 const std::size_t socket_buffer_size = 4096;
+const std::size_t max_sources = 32;
 
-void connection_handler(int connection_fd){
+struct sensor_t {
+    std::size_t id;
+    std::string name;
+};
+
+struct source_t {
+    bool active;
+    std::vector<sensor_t> sensors;
+};
+
+source_t sources[max_sources];
+
+void connection_handler(int connection_fd, std::size_t source_id){
     char buffer[socket_buffer_size];
 
     std::cout << "asgard: New connection received" << std::endl;
@@ -37,7 +51,11 @@ void connection_handler(int connection_fd){
         buffer[nbytes] = 0;
         std::cout << "asgard: Received message: " << buffer << std::endl;
 
+        std::string message(buffer);
 
+        std::string command(buffer.begin(), buffer.begin() + buffer.find(' '));
+
+        std::cout << "asgard: Command: " << command << std::endl;
     }
 
     close(connection_fd);
@@ -80,6 +98,10 @@ bool revoke_root(){
 } //end of anonymous namespace
 
 int main(){
+    for(std::size_t i = 0; i < max_sources; ++i){
+        sources[i].active = false;
+    }
+
     //Run the wiringPi setup (as root)
     wiringPiSetup();
 
@@ -117,6 +139,7 @@ int main(){
         return 1;
     }
 
+    //Listen
     if(listen(socket_fd, 5) != 0){
         printf("listen() failed\n");
         return 1;
@@ -124,8 +147,14 @@ int main(){
 
     int connection_fd;
     socklen_t address_length;
+
+    std::size_t current_source = 0;
+
+    //Wait for connection
     while((connection_fd = accept(socket_fd, (struct sockaddr *) &address, &address_length)) > -1){
-        std::thread(connection_handler, connection_fd).detach();
+        sources[current_source].active = true;
+        std::thread(connection_handler, connection_fd, current_source).detach();
+        ++current_source;
     }
 
     close();
