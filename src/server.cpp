@@ -25,16 +25,19 @@ int socket_fd;
 
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t gpio_led_pin = 1;
-
-char buffer[4096];
+const std::size_t socket_buffer_size = 4096;
 
 void connection_handler(int connection_fd){
+    char buffer[socket_buffer_size];
+
     std::cout << "asgard: New connection received" << std::endl;
 
     int nbytes;
-    while((nbytes = read(connection_fd, buffer, 4096)) > 0){
+    while((nbytes = read(connection_fd, buffer, socket_buffer_size)) > 0){
         buffer[nbytes] = 0;
         std::cout << "asgard: Received message: " << buffer << std::endl;
+
+
     }
 
     close(connection_fd);
