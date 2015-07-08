@@ -53,7 +53,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
         std::string message(buffer);
 
-        std::string command(buffer.begin(), buffer.begin() + buffer.find(' '));
+        std::string command(message.begin(), message.begin() + message.find(' '));
 
         std::cout << "asgard: Command: " << command << std::endl;
     }
@@ -61,7 +61,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
     close(connection_fd);
 }
 
-void close(){
+void cleanup(){
     digitalWrite(gpio_led_pin, LOW);
 
     close(socket_fd);
@@ -69,7 +69,7 @@ void close(){
 }
 
 void terminate(int /*signo*/){
-    close();
+    cleanup();
 
     abort();
 }
@@ -157,7 +157,7 @@ int main(){
         ++current_source;
     }
 
-    close();
+    cleanup();
 
     return 0;
 }
