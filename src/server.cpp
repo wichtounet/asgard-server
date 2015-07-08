@@ -35,9 +35,15 @@ struct sensor_t {
     std::string name;
 };
 
+struct actuator_t {
+    std::size_t id;
+    std::string name;
+};
+
 struct source_t {
     bool active;
     std::vector<sensor_t> sensors;
+    std::vector<actuator_t> actuators;
 };
 
 source_t sources[max_sources];
@@ -51,17 +57,16 @@ void connection_handler(int connection_fd, std::size_t source_id){
     int nbytes;
     while((nbytes = read(connection_fd, receive_buffer, socket_buffer_size)) > 0){
         receive_buffer[nbytes] = 0;
-        std::cout << "asgard: Received message: " << receive_buffer << std::endl;
 
         std::string message(receive_buffer);
 
         auto first_space = message.find(' ');
         std::string command(message.begin(), message.begin() + first_space);
 
-        if(command == "REGISTER"){
+        if(command == "REG_SENSOR"){
             auto second_space = message.find(' ', first_space + 1);
-            std::string type(message.begin() + first_space, message.begin() + second_space);
-            std::string name(message.begin() + second_space, message.end());
+            std::string type(message.begin() + first_space + 1, message.begin() + second_space);
+            std::string name(message.begin() + second_space + 1, message.end());
 
             std::size_t sensor_id = sources[source_id].sensors.size();
 
@@ -77,6 +82,42 @@ void connection_handler(int connection_fd, std::size_t source_id){
             //Give the sensor id to the client
             auto nbytes = snprintf(write_buffer, 4096, "%d", sensor_id);
             write(connection_fd, write_buffer, nbytes);
+        } else if(command == "REG_ACTUATOR"){
+            std::string name(message.begin() + first_space + 1, message.end());
+
+            std::size_t actuator_id = sources[source_id].actuators.size();
+
+            actuator_t actuator;
+            actuator.id = actuator_id;
+            actuator.name = name;
+
+            sources[source_id].actuators.push_back(actuator);
+
+            std::cout << "asgard: register actuator " << actuator_id << " : " << name << std::endl;
+
+            //Give the sensor id to the client
+            auto nbytes = snprintf(write_buffer, 4096, "%d", actuator_id);
+            write(connection_fd, write_buffer, nbytes);
+        } else if(command == "DATA"){
+            auto second_space = message.find(' ', first_space + 1);
+            std::string sensor_id_str(message.begin() + first_space + 1, message.begin() + second_space);
+            std::string data(message.begin() + second_space + 1, message.end());
+
+            int sensor_id = atoi(sensor_id_str.c_str());
+
+            auto& sensor = sources[source_id].sensors[sensor_id];
+
+            std::cout << "asgard: New data: sensor(" << sensor.type "): \"" << sensor.name << "\" : " << data << std::endl;
+        } else if(command == "EVENT"){
+            auto second_space = message.find(' ', first_space + 1);
+            std::string actuator_id_str(message.begin() + first_space + 1, message.begin() + second_space);
+            std::string data(message.begin() + second_space + 1, message.end());
+
+            int actuator_id = atoi(actuator_id_str.c_str());
+
+            auto& sensor = sources[source_id].actuators[actuator_id];
+
+            std::cout << "asgard: New event: actuator: \"" << sensor.name << "\" : " << data << std::endl;
         }
     }
 
