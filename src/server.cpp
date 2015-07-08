@@ -67,7 +67,7 @@ bool revoke_root(){
     }
 
     if (setuid(0) != -1){
-        std::cout << "asgard: manager to regain root privileges, exiting..." << std::endl;
+        std::cout << "asgard: managed to regain root privileges, exiting..." << std::endl;
         return false;
     }
 
