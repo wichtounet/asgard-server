@@ -63,14 +63,14 @@ void connection_handler(int connection_fd, std::size_t source_id){
             std::string type(message.begin() + first_space, message.begin() + second_space);
             std::string name(message.begin() + second_space, message.end());
 
-            std::size_t sensor_id = sources[sensor_id].size();
+            std::size_t sensor_id = sources[source_id].sensors.size();
 
             sensor_t sensor;
             sensor.id = sensor_id;
             sensor.type = type;
             sensor.name = name;
 
-            sources[sensor_id].push_back(sensor);
+            sources[source_id].sensors.push_back(sensor);
 
             std::cout << "asgard: register sensor " << sensor_id << " (" << type << ") : " << name << std::endl;
 
