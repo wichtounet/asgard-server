@@ -31,6 +31,7 @@ const std::size_t max_sources = 32;
 
 struct sensor_t {
     std::size_t id;
+    std::string type;
     std::string name;
 };
 
@@ -42,20 +43,41 @@ struct source_t {
 source_t sources[max_sources];
 
 void connection_handler(int connection_fd, std::size_t source_id){
-    char buffer[socket_buffer_size];
+    char receive_buffer[socket_buffer_size];
+    char write_buffer[socket_buffer_size];
 
     std::cout << "asgard: New connection received" << std::endl;
 
     int nbytes;
-    while((nbytes = read(connection_fd, buffer, socket_buffer_size)) > 0){
-        buffer[nbytes] = 0;
-        std::cout << "asgard: Received message: " << buffer << std::endl;
+    while((nbytes = read(connection_fd, receive_buffer, socket_buffer_size)) > 0){
+        receive_buffer[nbytes] = 0;
+        std::cout << "asgard: Received message: " << receive_buffer << std::endl;
 
-        std::string message(buffer);
+        std::string message(receive_buffer);
 
-        std::string command(message.begin(), message.begin() + message.find(' '));
+        auto first_space = message.find(' ');
+        std::string command(message.begin(), message.begin() + first_space);
 
-        std::cout << "asgard: Command: " << command << std::endl;
+        if(command == "REGISTER"){
+            auto second_space = message.find(' ', first_space + 1);
+            std::string type(message.begin() + first_space, message.begin() + second_space);
+            std::string name(message.begin() + second_space, message.end());
+
+            std::size_t sensor_id = sensors.size();
+
+            sensor_t sensor;
+            sensor.id = sensor_id;
+            sensor.type = type;
+            sensor.name = name;
+
+            sensors.push_back(sensor);
+
+            std::cout << "asgard: register sensor " << sensor_id << " (" << type << ") : " << name << std::endl;
+
+            //Give the sensor id to the client
+            auto nbytes = snprintf(write_buffer, 4096, "%ld", sensor_id);
+            write(connection_fd, write_buffer, nbytes);
+        }
     }
 
     close(connection_fd);
