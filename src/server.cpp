@@ -107,7 +107,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
             auto& sensor = sources[source_id].sensors[sensor_id];
 
-            std::cout << "asgard: New data: sensor(" << sensor.type "): \"" << sensor.name << "\" : " << data << std::endl;
+            std::cout << "asgard: New data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
         } else if(command == "EVENT"){
             auto second_space = message.find(' ', first_space + 1);
             std::string actuator_id_str(message.begin() + first_space + 1, message.begin() + second_space);
