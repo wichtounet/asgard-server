@@ -22,7 +22,9 @@
 namespace {
 
 int socket_fd;
+
 const std::size_t UNIX_PATH_MAX = 108;
+const std::size_t gpio_led_pin = 1;
 
 char buffer[4096];
 
@@ -38,11 +40,15 @@ void connection_handler(int connection_fd){
     close(connection_fd);
 }
 
-void terminate(int /*signo*/){
-    digitalWrite(1, LOW);
+void close(){
+    digitalWrite(gpio_led_pin, LOW);
 
     close(socket_fd);
     unlink("/tmp/asgard_socket");
+}
+
+void terminate(int /*signo*/){
+    close();
 
     abort();
 }
@@ -84,8 +90,8 @@ int main(){
     signal(SIGTERM, terminate);
     signal(SIGINT, terminate);
 
-    pinMode(1, OUTPUT);
-    digitalWrite(1, HIGH);
+    pinMode(gpio_led_pin, OUTPUT);
+    digitalWrite(gpio_led_pin, HIGH);
 
     //Open the socket
     socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -119,8 +125,7 @@ int main(){
         std::thread(connection_handler, connection_fd).detach();
     }
 
-    close(socket_fd);
-    unlink("/tmp/asgard_socket");
+    close();
 
     return 0;
 }
