@@ -25,6 +25,9 @@ all: release release_debug debug
 run: release
 	sudo ./release/bin/server
 
+remote_clean:
+	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make clean"
+
 remote_make:
 	sshpass -p ${password} scp Makefile ${user}@${pi}:${dir}/
 	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/
