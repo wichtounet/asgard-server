@@ -1,3 +1,8 @@
+user=pi
+pi=192.168.20.161
+password=raspberry
+dir=/home/${user}/asgard/asgard-server/
+
 default: release
 
 .PHONY: default release debug all clean
@@ -19,6 +24,14 @@ all: release release_debug debug
 
 run: release
 	sudo ./release/bin/server
+
+remote_make:
+	sshpass -p ${password} scp Makefile ${user}@${pi}:${dir}/
+	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/
+	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make"
+
+remote_run:
+	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make run"
 
 clean: base_clean
 
