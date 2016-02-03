@@ -9,6 +9,7 @@
 #include<thread>
 #include<vector>
 
+#include<cstdlib>
 #include<cstdio>
 #include<cstring>
 
@@ -19,6 +20,9 @@
 #include<signal.h>
 
 #include <wiringPi.h>
+
+#include <mongoose/Server.h>
+#include <mongoose/WebController.h>
 
 namespace {
 
@@ -158,6 +162,23 @@ bool revoke_root(){
     return true;
 }
 
+struct hello_controller : public Mongoose::WebController {
+    void hello(Mongoose::Request& request, Mongoose::StreamResponse& response){
+        response << "Hello " << htmlEntities(request.get("name", "... what's your name ?")) << std::endl;
+    }
+
+    void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
+        response << "<html><head><title>Test</title></head><body><h1>Hello you!</h1><div>This is a web page generated in C++ and I'm proud of it :P</div></html>" << std::endl;
+    }
+
+    //This will be called automatically
+    void setup(){
+        addRoute<hello_controller>("GET", "/hello", &hello_controller::hello);
+        addRoute<hello_controller>("GET", "/display", &hello_controller::display);
+    }
+};
+
+
 } //end of anonymous namespace
 
 int main(){
@@ -173,6 +194,16 @@ int main(){
        std::cout << "asgard: unable to revoke root privileges, exiting..." << std::endl;
        return 1;
     }
+
+    // Create the controller handling the requests
+    hello_controller controller;
+
+    // Run the server with our controller
+    Mongoose::Server server(8080);
+    server.registerController(&controller);
+
+    // Start the server and wait forever
+    server.start();
 
     //Register signals for "proper" shutdown
     signal(SIGTERM, terminate);
@@ -197,7 +228,7 @@ int main(){
     snprintf(address.sun_path, UNIX_PATH_MAX, "/tmp/asgard_socket");
 
     //Bind
-    if(bind(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)) != 0){
+    if(::bind(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)) != 0){
         printf("bind() failed\n");
         return 1;
     }
