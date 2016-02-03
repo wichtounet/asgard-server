@@ -1,3 +1,6 @@
+CXX=g++
+LD=g++
+
 user=pi
 pi=192.168.20.161
 password=raspberry
@@ -11,7 +14,7 @@ include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
 CXX_FLAGS += -pedantic -pthread
-LD_FLAGS  += -llirc_client -lwiringPi -pthread
+LD_FLAGS  += -lmongoose -llirc_client -lwiringPi -pthread
 
 $(eval $(call auto_folder_compile,src))
 $(eval $(call auto_add_executable,server))
@@ -30,7 +33,7 @@ remote_clean:
 
 remote_make:
 	sshpass -p ${password} scp Makefile ${user}@${pi}:${dir}/
-	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/
+	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/src/
 	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make"
 
 remote_run:
