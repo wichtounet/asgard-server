@@ -26,7 +26,7 @@
 
 namespace {
 
-int socket_fd;
+int socket_fd, nb_drivers = 0, nb_actuators = 0, nb_sensors = 0, nb_clicks = 0;
 
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t gpio_led_pin = 1;
@@ -37,11 +37,13 @@ struct sensor_t {
     std::size_t id;
     std::string type;
     std::string name;
+    std::string data;
 };
 
 struct actuator_t {
     std::size_t id;
     std::string name;
+    std::string data;
 };
 
 struct source_t {
@@ -57,6 +59,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
     char write_buffer[socket_buffer_size];
 
     std::cout << "asgard: New connection received" << std::endl;
+    nb_drivers++;
 
     int nbytes;
     while((nbytes = read(connection_fd, receive_buffer, socket_buffer_size)) > 0){
@@ -82,6 +85,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
             sources[source_id].sensors.push_back(sensor);
 
             std::cout << "asgard: register sensor " << sensor_id << " (" << type << ") : " << name << std::endl;
+	    nb_sensors++;
 
             //Give the sensor id to the client
             auto nbytes = snprintf(write_buffer, 4096, "%d", sensor_id);
@@ -98,6 +102,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
             sources[source_id].actuators.push_back(actuator);
 
             std::cout << "asgard: register actuator " << actuator_id << " : " << name << std::endl;
+	    nb_actuators++;
 
             //Give the sensor id to the client
             auto nbytes = snprintf(write_buffer, 4096, "%d", actuator_id);
@@ -111,6 +116,8 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
             auto& sensor = sources[source_id].sensors[sensor_id];
 
+	    sensor.data = data;
+
             std::cout << "asgard: New data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
         } else if(command == "EVENT"){
             auto second_space = message.find(' ', first_space + 1);
@@ -119,9 +126,12 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
             int actuator_id = atoi(actuator_id_str.c_str());
 
-            auto& sensor = sources[source_id].actuators[actuator_id];
+            auto& actuator = sources[source_id].actuators[actuator_id];
 
-            std::cout << "asgard: New event: actuator: \"" << sensor.name << "\" : " << data << std::endl;
+	    actuator.data = data;
+	
+            std::cout << "asgard: New event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
+	    nb_clicks++;
         }
     }
 
@@ -162,19 +172,37 @@ bool revoke_root(){
     return true;
 }
 
-struct hello_controller : public Mongoose::WebController {
-    void hello(Mongoose::Request& request, Mongoose::StreamResponse& response){
-        response << "Hello " << htmlEntities(request.get("name", "... what's your name ?")) << std::endl;
-    }
-
+struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << "<html><head><title>Test</title></head><body><h1>Hello you!</h1><div>This is a web page generated in C++ and I'm proud of it :P</div></html>" << std::endl;
+        response << "<html><head><title>Test 47</title></head><body><center><h1>Asgard - Home Automation System</h1></center></br><h3>Current informations :</h3></html>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Number of drivers running : " << nb_drivers << "</br>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Number of actuators active : " << nb_actuators << "</br>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Number of sensors active : " << nb_sensors << "</br>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nb_clicks << "</br>" << std::endl;
+
+	for(std::size_t i = 0; i < max_sources; ++i){
+            source_t& source = sources[i];
+            if(source.active){
+		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
+                    actuator_t& actuator = source.actuators[actuator_id];
+		    if(actuator.name == "ir_remote")
+		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "</br>" << std::endl;
+                }
+
+                for(std::size_t sensor_id = 0; sensor_id < source.sensors.size(); ++sensor_id){
+                    sensor_t& sensor = source.sensors[sensor_id];
+		    if(sensor.type == "TEMPERATURE" && sensor.name == "rf_weather_1")
+		        response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
+		    else if(sensor.type == "HUMIDITY" && sensor.name == "rf_weather_1")
+		        response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+                }
+            }
+        }
     }
 
     //This will be called automatically
     void setup(){
-        addRoute<hello_controller>("GET", "/hello", &hello_controller::hello);
-        addRoute<hello_controller>("GET", "/display", &hello_controller::display);
+        addRoute<display_controller>("GET", "/display", &display_controller::display);
     }
 };
 
@@ -196,7 +224,7 @@ int main(){
     }
 
     // Create the controller handling the requests
-    hello_controller controller;
+    display_controller controller;
 
     // Run the server with our controller
     Mongoose::Server server(8080);
