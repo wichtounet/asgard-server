@@ -129,6 +129,11 @@ void connection_handler(int connection_fd, std::size_t source_id){
             auto& actuator = sources[source_id].actuators[actuator_id];
 
 	    actuator.data = data;
+
+	    if(actuator.data == "KEY_UP")
+		digitalWrite(gpio_led_pin, HIGH);
+	    else if(actuator.data == "KEY_DOWN")
+		digitalWrite(gpio_led_pin, LOW);
 	
             std::cout << "asgard: New event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
 	    nb_clicks++;
@@ -174,7 +179,7 @@ bool revoke_root(){
 
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << "<html><head><title>Test 47</title></head><body><center><h1>Asgard - Home Automation System</h1></center></br><h3>Current informations :</h3></html>" << std::endl;
+        response << "<html><head><title>Test 63</title></head><body><center><h1>Asgard - Home Automation System</h1></center></br><h3>Current informations :</h3></html>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Number of drivers running : " << nb_drivers << "</br>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Number of actuators active : " << nb_actuators << "</br>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Number of sensors active : " << nb_sensors << "</br>" << std::endl;
@@ -183,18 +188,29 @@ struct display_controller : public Mongoose::WebController {
 	for(std::size_t i = 0; i < max_sources; ++i){
             source_t& source = sources[i];
             if(source.active){
-		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
-                    actuator_t& actuator = source.actuators[actuator_id];
-		    if(actuator.name == "ir_remote")
-		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "</br>" << std::endl;
-                }
-
                 for(std::size_t sensor_id = 0; sensor_id < source.sensors.size(); ++sensor_id){
                     sensor_t& sensor = source.sensors[sensor_id];
-		    if(sensor.type == "TEMPERATURE" && sensor.name == "rf_weather_1")
-		        response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
-		    else if(sensor.type == "HUMIDITY" && sensor.name == "rf_weather_1")
-		        response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+		    if(sensor.name == "Local"){
+		    	if(sensor.type == "TEMPERATURE"){
+		            response << "</br><hr>" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
+		    	} else if(sensor.type == "HUMIDITY")
+		            response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+		    } else if(sensor.name == "rf_weather_1"){
+		    	if(sensor.type == "TEMPERATURE"){
+		            response << "</br><hr>" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
+		    	} else if(sensor.type == "HUMIDITY")
+		            response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+		    }
+                }
+
+		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
+                    actuator_t& actuator = source.actuators[actuator_id];
+		    if(actuator.name == "ir_remote"){
+		        response << "</br><hr>" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
+		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "</br>" << std::endl;
+		    }
                 }
             }
         }
