@@ -13,10 +13,11 @@ default: release
 include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
-CXX_FLAGS += -pedantic -pthread
-LD_FLAGS  += -lmongoose -llirc_client -lwiringPi -pthread
+CXX_FLAGS += -ICppSQLite -pedantic -pthread
+LD_FLAGS  += -lsqlite3 -lmongoose -llirc_client -lwiringPi -pthread
 
 $(eval $(call auto_folder_compile,src))
+$(eval $(call auto_folder_compile,CppSQLite))
 $(eval $(call auto_add_executable,server))
 
 release: release_server

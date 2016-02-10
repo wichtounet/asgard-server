@@ -19,10 +19,13 @@
 #include<unistd.h>
 #include<signal.h>
 
+#include <ctime>
 #include <wiringPi.h>
 
 #include <mongoose/Server.h>
 #include <mongoose/WebController.h>
+
+#include "CppSQLite3.h"
 
 namespace {
 
@@ -179,11 +182,11 @@ bool revoke_root(){
 
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << "<html><head><title>Test 63</title></head><body><center><h1>Asgard - Home Automation System</h1></center></br><h3>Current informations :</h3></html>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Number of drivers running : " << nb_drivers << "</br>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Number of actuators active : " << nb_actuators << "</br>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Number of sensors active : " << nb_sensors << "</br>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nb_clicks << "</br>" << std::endl;
+        response << "<html><head><title>Test 63</title></head><body><center><h1>Asgard - Home Automation System</h1></center><br/><h3>Current informations</h3></html>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
+	response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nb_clicks << "<br/>" << std::endl;
 
 	for(std::size_t i = 0; i < max_sources; ++i){
             source_t& source = sources[i];
@@ -192,24 +195,24 @@ struct display_controller : public Mongoose::WebController {
                     sensor_t& sensor = source.sensors[sensor_id];
 		    if(sensor.name == "Local"){
 		    	if(sensor.type == "TEMPERATURE"){
-		            response << "</br><hr>" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-		            response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
+		            response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
 		    	} else if(sensor.type == "HUMIDITY")
-		            response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
 		    } else if(sensor.name == "rf_weather_1"){
 		    	if(sensor.type == "TEMPERATURE"){
-		            response << "</br><hr>" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-		            response << "&nbsp;&nbsp;&nbsp;Current temperature : " << sensor.data << " Celsius</br>" << std::endl;
+		            response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
 		    	} else if(sensor.type == "HUMIDITY")
-		            response << "&nbsp;&nbsp;&nbsp;Current humidity : " << sensor.data << " %</br>" << std::endl;
+		            response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
 		    }
                 }
 
 		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
                     actuator_t& actuator = source.actuators[actuator_id];
 		    if(actuator.name == "ir_remote"){
-		        response << "</br><hr>" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
-		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "</br>" << std::endl;
+		        response << "<br/>*********************************************" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
+		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "<br/>" << std::endl;
 		    }
                 }
             }
