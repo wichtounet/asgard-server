@@ -261,6 +261,9 @@ int main(){
     }
 
     try {
+        // Remove the database (THIS WONT BE IN A FINAL APPLICATION)
+        remove("test.db");
+
         // Print the SQLite version
         std::cout << "SQLite Version: " << db.SQLiteVersion() << std::endl;
 
@@ -268,12 +271,12 @@ int main(){
         db.open("test.db");
 
         // Create tables
-        db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20));");
-        db.execDML("create table if not exists source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
-        db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-        db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-        db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
-        db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
+        db.execDML("create table pi(pk_pi integer primary key autoincrement, name char(20));");
+        db.execDML("create table source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
+        db.execDML("create table sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+        db.execDML("create table actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+        db.execDML("create table sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
+        db.execDML("create table actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
 
         // Perform insertions
         int nRows = db.execDML("insert into pi(name) values ('tyr');") 
