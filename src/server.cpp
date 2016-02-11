@@ -70,13 +70,13 @@ void db_table(){
 
 void db_insert(){
     db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-    db.execDML("insert or ignore into source(fk_pi) select 1 where not exists(select 1 from source where fk_pi=1);");
-    db.execDML("insert or ignore into sensor(type,name,fk_source) select 'TEMPERATURE','Local',1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local' and fk_source=1);");
-    db.execDML("insert or ignore into sensor(type,name,fk_source) select 'HUMIDITY','Local',1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local' and fk_source=1);");
-    db.execDML("insert or ignore into sensor(type,name,fk_source) select 'TEMPERATURE','rf_weather_1',1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather_1' and fk_source=1);");
-    db.execDML("insert or ignore into sensor(type,name,fk_source) select 'HUMIDITY','rf_weather_1',1 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather_1' and fk_source=1);");
-    db.execDML("insert or ignore into actuator(name,fk_source) select 'rf_button_1',1 where not exists(select 1 from actuator where name='rf_button_1' and fk_source=1);");
-    db.execDML("insert or ignore into actuator(name,fk_source) select 'ir_remote',1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
+    db.execDML("insert into source(fk_pi) select 1 where not exists(select 1 from source where fk_pi=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'Local', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'Local', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather_1' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather_1' and fk_source=1);");
+    db.execDML("insert into actuator(name, fk_source) select 'rf_button_1', 1 where not exists(select 1 from actuator where name='rf_button_1' and fk_source=1);");
+    db.execDML("insert into actuator(name, fk_source) select 'ir_remote', 1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
 }
 
 void connection_handler(int connection_fd, std::size_t source_id){
@@ -145,7 +145,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
 	    try {
 		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into sensor_data (data) values (%s);", data.c_str());
+		bufSQL.format("insert into sensor_data (data, fk_sensor) values (%s, %zu);", data.c_str(), sensor_id+1);
 		db.execDML(bufSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -165,7 +165,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
 	    try {
 		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into actuator_data (data) values (%s);", data.c_str());
+		bufSQL.format("insert into actuator_data (data, fk_actuator) values (%s, %zu);", data.c_str(), actuator_id+1);
 		db.execDML(bufSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;

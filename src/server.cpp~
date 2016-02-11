@@ -35,9 +35,6 @@ const std::size_t gpio_led_pin = 1;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
-// Create the database object
-CppSQLite3DB db;
-
 struct sensor_t {
     std::size_t id;
     std::string type;
@@ -58,6 +55,29 @@ struct source_t {
 };
 
 source_t sources[max_sources];
+
+// Create the database object
+CppSQLite3DB db;
+
+void db_table(){
+    db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
+    db.execDML("create table if not exists source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
+    db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
+    db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
+}
+
+void db_insert(){
+    db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
+    db.execDML("insert into source(fk_pi) select 1 where not exists(select 1 from source where fk_pi=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'Local', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'Local', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather_1' and fk_source=1);");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather_1' and fk_source=1);");
+    db.execDML("insert into actuator(name, fk_source) select 'rf_button_1', 1 where not exists(select 1 from actuator where name='rf_button_1' and fk_source=1);");
+    db.execDML("insert into actuator(name, fk_source) select 'ir_remote', 1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
+}
 
 void connection_handler(int connection_fd, std::size_t source_id){
     char receive_buffer[socket_buffer_size];
@@ -125,7 +145,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
 	    try {
 		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into sensor_data (data) values (%s);", data.c_str());
+		bufSQL.format("insert into sensor_data (data, fk_sensor) values (%s, %zu);", data.c_str(), sensor_id);
 		db.execDML(bufSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -145,7 +165,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
 	    try {
 		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into actuator_data (data) values (%s);", data.c_str());
+		bufSQL.format("insert into actuator_data (data, fk_actuator) values (%s, %zu);", data.c_str(), actuator_id);
 		db.execDML(bufSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -268,29 +288,10 @@ int main(){
         db.open("test.db");
 
         // Create tables
-        db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
-        db.execDML("create table if not exists source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
-        db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-        db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-        db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
-        db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
+	db_table();
 
         // Perform insertions
-        db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-	std::cout << "test_1" << std::endl;
-	db.execDML("insert or ignore into source(fk_pi) select 1 where not exists(select 1 from source where fk_pi=1);");
-	std::cout << "test_2" << std::endl;
-	db.execDML("insert or ignore into sensor(type,name,fk_source) select 'TEMPERATURE','Local',1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local' and fk_source=1);");
-	std::cout << "test_3" << std::endl;
-	db.execDML("insert or ignore into sensor(type,name,fk_source) select 'HUMIDITY','Local',1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local' and fk_source=1);");
-	std::cout << "test_4" << std::endl;
-	db.execDML("insert or ignore into sensor(type,name,fk_source) select 'TEMPERATURE','rf_weather_1',1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather_1' and fk_source=1);");
-	std::cout << "test_5" << std::endl;
-	db.execDML("insert or ignore into sensor(type,name,fk_source) select 'HUMIDITY','rf_weather_1',1 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather_1' and fk_source=1);");
-	std::cout << "test_6" << std::endl;
-	db.execDML("insert or ignore into actuator(name,fk_source) select 'rf_button_1',1 where not exists(select 1 from actuator where name='rf_button_1' and fk_source=1);");
-	std::cout << "test_7" << std::endl;
-	db.execDML("insert or ignore into actuator(name,fk_source) select 'ir_remote',1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
+        db_insert();
 
     } catch (CppSQLite3Exception& e){
         std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
