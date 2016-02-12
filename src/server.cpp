@@ -59,6 +59,21 @@ source_t sources[max_sources];
 // Create the database object
 CppSQLite3DB db;
 
+void db_create(){
+    try {
+        db.open("test.db");
+
+        // Create tables
+	db_table();
+
+        // Perform insertions
+        db_insert();
+
+    } catch (CppSQLite3Exception& e){
+        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+    }
+}
+
 void db_table(){
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
     db.execDML("create table if not exists source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
@@ -145,7 +160,7 @@ void connection_handler(int connection_fd, std::size_t source_id){
 
 	    try {
 		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into sensor_data (data, fk_sensor) values (%s, %zu);", data.c_str(), sensor_id+1);
+		bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+1);
 		db.execDML(bufSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -164,9 +179,12 @@ void connection_handler(int connection_fd, std::size_t source_id){
 	    actuator.data = data;
 
 	    try {
-		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into actuator_data (data, fk_actuator) values (%s, %zu);", data.c_str(), actuator_id+1);
-		db.execDML(bufSQL);
+		CppSQLite3Buffer buffSQL;
+		if(actuator.name == "rf_button_1")
+		    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 1);", data.c_str());
+		else if(actuator.name == "ir_remote")
+		    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 2);", data.c_str());
+		db.execDML(buffSQL);
 	    } catch (CppSQLite3Exception& e){
         	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
             }
@@ -255,6 +273,44 @@ struct display_controller : public Mongoose::WebController {
                 }
             }
         }
+	
+	/* TO IMPLEMENT
+	try {
+	    CppSQLite3Query p = db.execQuery("select * from sensor order by 1;");
+            std::string last_value_1;
+            while (!p.eof()){
+		if(p.fieldValue(2) != last_value_1){
+		    last_value_1 = p.fieldValue(2);
+		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_1 << "</h3>" << std::endl;
+		}
+		CppSQLite3Query q = db.execQuery("select * from sensor_data order by 1;");
+            	std::string last_value_2;
+        	while (!q.eof()){
+	    	    last_value_2 = q.fieldValue(1);
+            	    q.nextRow();
+        	}
+		response << "&nbsp;&nbsp;&nbsp;Last Data : " << last_value_2 << "<br/>" << std::endl;
+            	p.nextRow();
+            }
+	    CppSQLite3Query r = db.execQuery("select * from sensor order by 1;");
+	    std::string last_value_3;
+            while (!r.eof()){
+		if(r.fieldValue(2) != last_value_3){
+		    last_value_3 = r.fieldValue(2);
+		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_3 << "</h3>" << std::endl;
+		}
+		CppSQLite3Query s = db.execQuery("select * from sensor_data order by 1;");
+            	std::string last_value_4;
+        	while (!s.eof()){
+	    	    last_value_4 = s.fieldValue(1);
+            	    s.nextRow();
+        	}
+		response << "&nbsp;&nbsp;&nbsp;Last input : " << last_value_4 << "<br/>" << std::endl;
+            	r.nextRow();
+            }
+	} catch (CppSQLite3Exception& e){
+            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        }*/
     }
 
     //This will be called automatically
@@ -280,22 +336,8 @@ int main(){
        return 1;
     }
 
-    try {
-        // Print the SQLite version
-        std::cout << "SQLite Version: " << db.SQLiteVersion() << std::endl;
-
-        // Open (connect) the database
-        db.open("test.db");
-
-        // Create tables
-	db_table();
-
-        // Perform insertions
-        db_insert();
-
-    } catch (CppSQLite3Exception& e){
-        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
+    // Open (connect) the database
+    db_create();
 
     // Create the controller handling the requests
     display_controller controller;
