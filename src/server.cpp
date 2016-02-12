@@ -28,12 +28,17 @@
 #include "CppSQLite3.h"
 
 namespace {
-int socket_fd, nb_drivers = 0, nb_actuators = 0, nb_sensors = 0, nb_clicks = 0;
 
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t gpio_led_pin = 1;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
+
+const char* socket_path = "/tmp/asgard_socket";
+
+int socket_fd;
+
+int nb_drivers = 0, nb_actuators = 0, nb_sensors = 0, nb_clicks = 0;
 
 struct sensor_t {
     std::size_t id;
@@ -58,6 +63,9 @@ source_t sources[max_sources];
 
 // Create the database object
 CppSQLite3DB db;
+
+void db_table();
+void db_insert();
 
 void db_create(){
     try {
@@ -319,7 +327,6 @@ struct display_controller : public Mongoose::WebController {
     }
 };
 
-
 } //end of anonymous namespace
 
 int main(){
@@ -363,13 +370,13 @@ int main(){
         return 1;
     }
 
-    unlink("/tmp/asgard_socket");
+    unlink(socket_path);
 
     //Init the address
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
-    snprintf(address.sun_path, UNIX_PATH_MAX, "/tmp/asgard_socket");
+    snprintf(address.sun_path, UNIX_PATH_MAX, socket_path);
 
     //Bind
     if(::bind(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)) != 0){
