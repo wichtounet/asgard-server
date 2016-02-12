@@ -1,3 +1,6 @@
 [submodule "make-utils"]
 	path = make-utils
 	url = https://github.com/wichtounet/make-utils.git
+[submodule "CppSQLite"]
+	path = CppSQLite
+	url = https://github.com/neosmart/CppSQLite.git
