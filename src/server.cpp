@@ -1,5 +1,5 @@
 //=======================================================================
-// Copyright (c) 2015 Baptiste Wicht
+// Copyright (c) 2015-2016 Baptiste Wicht
 // Distributed under the terms of the MIT License.
 // (See accompanying file LICENSE or copy at
 //  http://opensource.org/licenses/MIT)
@@ -97,7 +97,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
     std::string command;
     message_ss >> command;
-        
+
     if(command == "REG_SOURCE"){
 	    sources.emplace_back();
 
@@ -128,7 +128,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
     } else if(command == "REG_SENSOR"){
             int source_id;
 	    message_ss >> source_id;
-            
+
             auto& source = select_source(source_id);
 
             source.sensors.emplace_back();
@@ -153,7 +153,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
             int sensor_id;
 	    message_ss >> sensor_id;
-            
+
             auto& source = select_source(source_id);
 
             source.sensors.erase(std::remove_if(source.sensors.begin(), source.sensors.end(), [&](sensor_t& sensor){
@@ -164,7 +164,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
     } else if(command == "REG_ACTUATOR"){
             int source_id;
 	    message_ss >> source_id;
-            
+
             auto& source = select_source(source_id);
 
             source.actuators.emplace_back();
@@ -188,7 +188,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
             int actuator_id;
 	    message_ss >> actuator_id;
-            
+
             auto& source = select_source(source_id);
 
             source.actuators.erase(std::remove_if(source.actuators.begin(), source.actuators.end(), [&](actuator_t& actuator){
@@ -402,7 +402,7 @@ struct display_controller : public Mongoose::WebController {
                 }
             }
         }
-	
+
 	/* TO IMPLEMENT
 	try {
 	    CppSQLite3Query p = db.execQuery("select * from sensor order by 1;");
