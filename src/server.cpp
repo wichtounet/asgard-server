@@ -6,8 +6,10 @@
 //=======================================================================
 
 #include<iostream>
+#include<sstream>
 #include<thread>
 #include<vector>
+#include<algorithm>
 
 #include<cstdlib>
 #include<cstdio>
@@ -40,6 +42,10 @@ int socket_fd;
 
 int nb_drivers = 0, nb_actuators = 0, nb_sensors = 0, nb_clicks = 0;
 
+// Allocate space for the buffers
+char receive_buffer[socket_buffer_size];
+char write_buffer[socket_buffer_size];
+
 struct sensor_t {
     std::size_t id;
     std::string type;
@@ -54,15 +60,236 @@ struct actuator_t {
 };
 
 struct source_t {
-    bool active;
+    bool active; // TODO Remove
+
+    std::size_t id;
+    std::string name;
     std::vector<sensor_t> sensors;
     std::vector<actuator_t> actuators;
+
+    std::size_t sensors_counter;
+    std::size_t actuators_counter;
 };
 
-source_t sources[max_sources];
+std::size_t current_source = 0;
+
+std::vector<source_t> sources;
+
+source_t& select_source(std::size_t source_id){
+	for(auto& source : sources){
+		if(source.id == source_id){
+			return source;
+		}
+	}
+
+	std::cerr << "asgard:server: Invalid request for source id " << source_id << std::endl;
+
+	return sources.front();
+}
 
 // Create the database object
 CppSQLite3DB db;
+
+void cleanup();
+
+void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length){
+    std::stringstream message_ss(message);
+
+    std::string command;
+    message_ss >> command;
+        
+    if(command == "REG_SOURCE"){
+	    sources.emplace_back();
+
+	    auto& source = sources.back();
+	    source.id = current_source++;
+            source.sensors_counter = 0;
+            source.actuators_counter = 0;
+
+            message_ss >> source.name;
+
+	    // Give the source id back to the client
+	    auto nbytes = snprintf(write_buffer, 4096, "%d", source.id);
+	    if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
+                std::perror("asgard:server: failed to answer");
+                return;
+            }
+
+	    std::cout << "asgard: new source registered " << source.id << " : " << source.name << std::endl;
+    } else if(command == "UNREG_SOURCE"){
+            int source_id;
+	    message_ss >> source_id;
+
+            sources.erase(std::remove_if(sources.begin(), sources.end(), [&](source_t& source){
+                  return source.id == static_cast<std::size_t>(source_id);
+            }), sources.end());
+
+            std::cout << "asgard: unregistered source " << source_id << std::endl;
+    } else if(command == "REG_SENSOR"){
+            int source_id;
+	    message_ss >> source_id;
+            
+            auto& source = select_source(source_id);
+
+            source.sensors.emplace_back();
+            auto& sensor  = source.sensors.back();;
+
+            message_ss >> sensor.type;
+            message_ss >> sensor.name;
+
+            sensor.id = source.sensors_counter++;
+
+	    // Give the sensor id back to the client
+	    auto nbytes = snprintf(write_buffer, 4096, "%d", sensor.id);
+	    if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
+                std::perror("asgard:server: failed to answer");
+                return;
+            }
+
+            std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
+    } else if(command == "UNREG_SENSOR"){
+            int source_id;
+	    message_ss >> source_id;
+
+            int sensor_id;
+	    message_ss >> sensor_id;
+            
+            auto& source = select_source(source_id);
+
+            source.sensors.erase(std::remove_if(source.sensors.begin(), source.sensors.end(), [&](sensor_t& sensor){
+                  return sensor.id == static_cast<std::size_t>(sensor_id);
+            }), source.sensors.end());
+
+            std::cout << "asgard: sensor unregistered from source " << source_id << " : " << sensor_id << std::endl;
+    } else if(command == "REG_ACTUATOR"){
+            int source_id;
+	    message_ss >> source_id;
+            
+            auto& source = select_source(source_id);
+
+            source.actuators.emplace_back();
+            auto& actuator  = source.actuators.back();;
+
+            message_ss >> actuator.name;
+
+            actuator.id = source.actuators_counter++;
+
+	    // Give the sensor id back to the client
+	    auto nbytes = snprintf(write_buffer, 4096, "%d", actuator.id);
+	    if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
+                std::perror("asgard:server: failed to answer");
+                return;
+            }
+
+            std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
+    } else if(command == "UNREG_ACTUATOR"){
+            int source_id;
+	    message_ss >> source_id;
+
+            int actuator_id;
+	    message_ss >> actuator_id;
+            
+            auto& source = select_source(source_id);
+
+            source.actuators.erase(std::remove_if(source.actuators.begin(), source.actuators.end(), [&](actuator_t& actuator){
+                  return actuator.id == static_cast<std::size_t>(actuator_id);
+            }), source.actuators.end());
+
+            std::cout << "asgard: actuator unregistered from source " << source_id << " : " << actuator_id << std::endl;
+    } else if(command == "DATA"){
+            int source_id;
+	    message_ss >> source_id;
+
+            int sensor_id;
+	    message_ss >> sensor_id;
+
+	    std::string data;
+	    message_ss >> data;
+
+            auto& source = select_source(source_id);
+	    auto& sensor = source.sensors[sensor_id];
+
+	    sensor.data = data;
+
+	    try {
+		    CppSQLite3Buffer bufSQL;
+		    bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+1);
+		    db.execDML(bufSQL);
+	    } catch (CppSQLite3Exception& e){
+		    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+	    }
+
+	    std::cout << "asgard:server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
+    } else if(command == "EVENT"){
+            int source_id;
+	    message_ss >> source_id;
+
+            int actuator_id;
+	    message_ss >> actuator_id;
+
+	    std::string data;
+	    message_ss >> data;
+
+            auto& source = select_source(source_id);
+	    auto& actuator = source.actuators[actuator_id];
+
+	    actuator.data = data;
+
+	    try {
+		    CppSQLite3Buffer buffSQL;
+		    if(actuator.name == "rf_button_1")
+			    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 1);", data.c_str());
+		    else if(actuator.name == "ir_remote")
+			    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 2);", data.c_str());
+		    db.execDML(buffSQL);
+	    } catch (CppSQLite3Exception& e){
+		    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+	    }
+
+	    std::cout << "asgard:server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
+    }
+}
+
+int run(){
+    // Create the socket
+    socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if(socket_fd < 0){
+        std::cerr << "socket() failed\n" << std::endl;
+        return 1;
+    }
+
+    // Init the server address
+    struct sockaddr_un server_address;
+    memset(&server_address, 0, sizeof(struct sockaddr_un));
+    server_address.sun_family = AF_UNIX;
+    snprintf(server_address.sun_path, UNIX_PATH_MAX, socket_path);
+
+    // Unlink the socket file
+    unlink(socket_path);
+
+    // Bind
+    if(::bind(socket_fd, (struct sockaddr *) &server_address, sizeof(server_address)) < 0){
+        std::cerr << "bind() failed\n" << std::endl;
+	close(socket_fd);
+        return 1;
+    }
+
+    while(true){
+        sockaddr_un client_address;
+        socklen_t address_length = sizeof(struct sockaddr_un);
+
+        // Wait for one message
+        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size - 1, 0, (struct sockaddr *) &client_address, &address_length);
+        receive_buffer[bytes_received] = '\0';
+
+        // Handle the message
+        handle_command(receive_buffer, client_address, address_length);
+    }
+
+    cleanup();
+
+    return 0;
+}
 
 void db_table();
 void db_insert();
@@ -102,114 +329,6 @@ void db_insert(){
     db.execDML("insert into actuator(name, fk_source) select 'ir_remote', 1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
 }
 
-void connection_handler(int connection_fd, std::size_t source_id){
-    char receive_buffer[socket_buffer_size];
-    char write_buffer[socket_buffer_size];
-
-    std::cout << "asgard: New connection received" << std::endl;
-    nb_drivers++;
-
-    int nbytes;
-    while((nbytes = read(connection_fd, receive_buffer, socket_buffer_size)) > 0){
-        receive_buffer[nbytes] = 0;
-
-        std::string message(receive_buffer);
-
-        auto first_space = message.find(' ');
-        std::string command(message.begin(), message.begin() + first_space);
-
-        if(command == "REG_SENSOR"){
-            auto second_space = message.find(' ', first_space + 1);
-            std::string type(message.begin() + first_space + 1, message.begin() + second_space);
-            std::string name(message.begin() + second_space + 1, message.end());
-
-            std::size_t sensor_id = sources[source_id].sensors.size();
-
-            sensor_t sensor;
-            sensor.id = sensor_id;
-            sensor.type = type;
-            sensor.name = name;
-
-            sources[source_id].sensors.push_back(sensor);
-
-            std::cout << "asgard: register sensor " << sensor_id << " (" << type << ") : " << name << std::endl;
-	    nb_sensors++;
-
-            //Give the sensor id to the client
-            auto nbytes = snprintf(write_buffer, 4096, "%d", sensor_id);
-            write(connection_fd, write_buffer, nbytes);
-        } else if(command == "REG_ACTUATOR"){
-            std::string name(message.begin() + first_space + 1, message.end());
-
-            std::size_t actuator_id = sources[source_id].actuators.size();
-
-            actuator_t actuator;
-            actuator.id = actuator_id;
-            actuator.name = name;
-
-            sources[source_id].actuators.push_back(actuator);
-
-            std::cout << "asgard: register actuator " << actuator_id << " : " << name << std::endl;
-	    nb_actuators++;
-
-            //Give the sensor id to the client
-            auto nbytes = snprintf(write_buffer, 4096, "%d", actuator_id);
-            write(connection_fd, write_buffer, nbytes);
-        } else if(command == "DATA"){
-            auto second_space = message.find(' ', first_space + 1);
-            std::string sensor_id_str(message.begin() + first_space + 1, message.begin() + second_space);
-            std::string data(message.begin() + second_space + 1, message.end());
-
-            int sensor_id = atoi(sensor_id_str.c_str());
-
-            auto& sensor = sources[source_id].sensors[sensor_id];
-
-	    sensor.data = data;
-
-	    try {
-		CppSQLite3Buffer bufSQL;
-		bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+1);
-		db.execDML(bufSQL);
-	    } catch (CppSQLite3Exception& e){
-        	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-            }
-
-            std::cout << "asgard: New data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
-        } else if(command == "EVENT"){
-            auto second_space = message.find(' ', first_space + 1);
-            std::string actuator_id_str(message.begin() + first_space + 1, message.begin() + second_space);
-            std::string data(message.begin() + second_space + 1, message.end());
-
-            int actuator_id = atoi(actuator_id_str.c_str());
-
-            auto& actuator = sources[source_id].actuators[actuator_id];
-
-	    actuator.data = data;
-
-	    try {
-		CppSQLite3Buffer buffSQL;
-		if(actuator.name == "rf_button_1")
-		    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 1);", data.c_str());
-		else if(actuator.name == "ir_remote")
-		    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 2);", data.c_str());
-		db.execDML(buffSQL);
-	    } catch (CppSQLite3Exception& e){
-        	std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-            }
-
-	    if(actuator.data == "KEY_UP")
-		digitalWrite(gpio_led_pin, HIGH);
-	    else if(actuator.data == "KEY_DOWN")
-		digitalWrite(gpio_led_pin, LOW);
-	
-            std::cout << "asgard: New event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
-	    nb_clicks++;
-        }
-    }
-
-    close(connection_fd);
-}
-
 void cleanup(){
     digitalWrite(gpio_led_pin, LOW);
 
@@ -218,6 +337,8 @@ void cleanup(){
 }
 
 void terminate(int /*signo*/){
+    std::cout << "asgard:server: stopping the server" << std::endl;
+
     cleanup();
 
     abort();
@@ -258,25 +379,25 @@ struct display_controller : public Mongoose::WebController {
                 for(std::size_t sensor_id = 0; sensor_id < source.sensors.size(); ++sensor_id){
                     sensor_t& sensor = source.sensors[sensor_id];
 		    if(sensor.name == "Local"){
-		    	if(sensor.type == "TEMPERATURE"){
-		            response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-		            response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
-		    	} else if(sensor.type == "HUMIDITY")
-		            response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
+			if(sensor.type == "TEMPERATURE"){
+			    response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+			    response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
+			} else if(sensor.type == "HUMIDITY")
+			    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
 		    } else if(sensor.name == "rf_weather_1"){
-		    	if(sensor.type == "TEMPERATURE"){
-		            response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-		            response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
-		    	} else if(sensor.type == "HUMIDITY")
-		            response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
+			if(sensor.type == "TEMPERATURE"){
+			    response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
+			    response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
+			} else if(sensor.type == "HUMIDITY")
+			    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
 		    }
                 }
 
 		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
                     actuator_t& actuator = source.actuators[actuator_id];
 		    if(actuator.name == "ir_remote"){
-		        response << "<br/>*********************************************" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
-		        response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "<br/>" << std::endl;
+			response << "<br/>*********************************************" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
+			response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "<br/>" << std::endl;
 		    }
                 }
             }
@@ -292,13 +413,13 @@ struct display_controller : public Mongoose::WebController {
 		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_1 << "</h3>" << std::endl;
 		}
 		CppSQLite3Query q = db.execQuery("select * from sensor_data order by 1;");
-            	std::string last_value_2;
-        	while (!q.eof()){
-	    	    last_value_2 = q.fieldValue(1);
-            	    q.nextRow();
-        	}
+		std::string last_value_2;
+		while (!q.eof()){
+		    last_value_2 = q.fieldValue(1);
+		    q.nextRow();
+		}
 		response << "&nbsp;&nbsp;&nbsp;Last Data : " << last_value_2 << "<br/>" << std::endl;
-            	p.nextRow();
+		p.nextRow();
             }
 	    CppSQLite3Query r = db.execQuery("select * from sensor order by 1;");
 	    std::string last_value_3;
@@ -308,13 +429,13 @@ struct display_controller : public Mongoose::WebController {
 		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_3 << "</h3>" << std::endl;
 		}
 		CppSQLite3Query s = db.execQuery("select * from sensor_data order by 1;");
-            	std::string last_value_4;
-        	while (!s.eof()){
-	    	    last_value_4 = s.fieldValue(1);
-            	    s.nextRow();
-        	}
+		std::string last_value_4;
+		while (!s.eof()){
+		    last_value_4 = s.fieldValue(1);
+		    s.nextRow();
+		}
 		response << "&nbsp;&nbsp;&nbsp;Last input : " << last_value_4 << "<br/>" << std::endl;
-            	r.nextRow();
+		r.nextRow();
             }
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -330,10 +451,6 @@ struct display_controller : public Mongoose::WebController {
 } //end of anonymous namespace
 
 int main(){
-    for(std::size_t i = 0; i < max_sources; ++i){
-        sources[i].active = false;
-    }
-
     //Run the wiringPi setup (as root)
     wiringPiSetup();
 
@@ -363,46 +480,5 @@ int main(){
     pinMode(gpio_led_pin, OUTPUT);
     digitalWrite(gpio_led_pin, HIGH);
 
-    //Open the socket
-    socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if(socket_fd < 0){
-        printf("socket() failed\n");
-        return 1;
-    }
-
-    unlink(socket_path);
-
-    //Init the address
-    struct sockaddr_un address;
-    memset(&address, 0, sizeof(struct sockaddr_un));
-    address.sun_family = AF_UNIX;
-    snprintf(address.sun_path, UNIX_PATH_MAX, socket_path);
-
-    //Bind
-    if(::bind(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un)) != 0){
-        printf("bind() failed\n");
-        return 1;
-    }
-
-    //Listen
-    if(listen(socket_fd, 5) != 0){
-        printf("listen() failed\n");
-        return 1;
-    }
-
-    int connection_fd;
-    socklen_t address_length;
-
-    std::size_t current_source = 0;
-
-    //Wait for connection
-    while((connection_fd = accept(socket_fd, (struct sockaddr *) &address, &address_length)) > -1){
-        sources[current_source].active = true;
-        std::thread(connection_handler, connection_fd, current_source).detach();
-        ++current_source;
-    }
-
-    cleanup();
-
-    return 0;
+    return run();
 }
