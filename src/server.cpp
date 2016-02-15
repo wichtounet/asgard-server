@@ -274,43 +274,58 @@ struct display_controller : public Mongoose::WebController {
             }
         }
 	
-	/* TO IMPLEMENT
+	// TO IMPLEMENT
 	try {
-	    CppSQLite3Query p = db.execQuery("select * from sensor order by 1;");
-            std::string last_value_1;
-            while (!p.eof()){
-		if(p.fieldValue(2) != last_value_1){
-		    last_value_1 = p.fieldValue(2);
-		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_1 << "</h3>" << std::endl;
-		}
-		CppSQLite3Query q = db.execQuery("select * from sensor_data order by 1;");
-            	std::string last_value_2;
-        	while (!q.eof()){
-	    	    last_value_2 = q.fieldValue(1);
-            	    q.nextRow();
-        	}
-		response << "&nbsp;&nbsp;&nbsp;Last Data : " << last_value_2 << "<br/>" << std::endl;
-            	p.nextRow();
+	    CppSQLite3Query sensor_db = db.execQuery("select name from sensor order by name;");
+            std::string last_sensor_name;
+            while (!sensor_db.eof()){
+	    	if(sensor_db.fieldValue(0) != last_sensor_name){
+		    last_sensor_name = sensor_db.fieldValue(0);
+		    std::cout << "Driver name : " << last_sensor_name << std::endl;
+	            CppSQLite3Query sensor_type = db.execQuery("select pk_sensor,type from sensor order by 1;");
+        	    std::string last_sensor_value;
+                    std::string last_sensor_type;
+                    while (!sensor_type.eof()){
+	    	    	if(sensor_type.fieldValue(1) != last_sensor_type){
+	   	    	    last_sensor_value = sensor_type.fieldValue(0);
+	   	    	    last_sensor_type = sensor_type.fieldValue(1);
+			    CppSQLite3Query sensor_data = db.execQuery("select data,fk_sensor from sensor_data order by 1;");
+                	    std::string last_sensor_data;
+                	    while (!sensor_data.eof()){
+	    	   	    	if(sensor_data.fieldValue(0) != last_sensor_data && last_sensor_value == sensor_data.fieldValue(1)){
+	   	    	            last_sensor_data = sensor_data.fieldValue(0);
+	        		    std::cout << last_sensor_type << " : " << last_sensor_data  << std::endl;
+			    	}
+            	                sensor_data.nextRow();
+			    }
+		        }
+            	        sensor_type.nextRow();
+            	    }
+	    	}
+            sensor_db.nextRow();
             }
-	    CppSQLite3Query r = db.execQuery("select * from sensor order by 1;");
-	    std::string last_value_3;
-            while (!r.eof()){
-		if(r.fieldValue(2) != last_value_3){
-		    last_value_3 = r.fieldValue(2);
-		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_3 << "</h3>" << std::endl;
+	    CppSQLite3Query actuator_db = db.execQuery("select pk_actuator,name from actuator order by name;");
+	    std::string last_actuator_value;
+	    std::string last_actuator_name;
+            while (!actuator_db.eof()){
+		if(actuator_db.fieldValue(1) != last_actuator_name){
+		    last_actuator_value = actuator_db.fieldValue(0);
+		    last_actuator_name = actuator_db.fieldValue(1);
+		    std::cout << "Driver name : " << last_actuator_name << std::endl;
+	        }
+	    CppSQLite3Query actuator_data_db = db.execQuery("select data,fk_actuator from actuator_data order by 1;");
+            std::string last_actuator_data;
+            while (!actuator_data_db.eof()){
+	    	if(actuator_data_db.fieldValue(0) != last_actuator_data && last_actuator_value == actuator_data_db.fieldValue(1)){
+	    	    last_actuator_data = actuator_data_db.fieldValue(0);
+	    	    std::cout << "Last input : " << last_actuator_data << std::endl;
 		}
-		CppSQLite3Query s = db.execQuery("select * from sensor_data order by 1;");
-            	std::string last_value_4;
-        	while (!s.eof()){
-	    	    last_value_4 = s.fieldValue(1);
-            	    s.nextRow();
-        	}
-		response << "&nbsp;&nbsp;&nbsp;Last input : " << last_value_4 << "<br/>" << std::endl;
-            	r.nextRow();
+            	actuator_data_db.nextRow();
             }
-	} catch (CppSQLite3Exception& e){
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }*/
+            actuator_db.nextRow();
+        } catch (CppSQLite3Exception& e){
+        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        }
     }
 
     //This will be called automatically
