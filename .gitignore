@@ -3,3 +3,6 @@ release_debug
 debug
 Makefile~
 src/server.cpp~
+
+# Ignore the database
+test.db
