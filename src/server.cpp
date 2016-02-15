@@ -1,3 +1,4 @@
+
 //=======================================================================
 // Copyright (c) 2015-2016 Baptiste Wicht
 // Distributed under the terms of the MIT License.
@@ -311,7 +312,7 @@ void db_create(){
 
 void db_table(){
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
-    db.execDML("create table if not exists source(pk_source integer primary key autoincrement, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
+    db.execDML("create table if not exists source(pk_source integer primary key autoincrement, name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
     db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
@@ -320,13 +321,15 @@ void db_table(){
 
 void db_insert(){
     db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-    db.execDML("insert into source(fk_pi) select 1 where not exists(select 1 from source where fk_pi=1);");
-    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'Local', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local' and fk_source=1);");
-    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'Local', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local' and fk_source=1);");
-    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather_1' and fk_source=1);");
-    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'rf_weather_1', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather_1' and fk_source=1);");
-    db.execDML("insert into actuator(name, fk_source) select 'rf_button_1', 1 where not exists(select 1 from actuator where name='rf_button_1' and fk_source=1);");
-    db.execDML("insert into actuator(name, fk_source) select 'ir_remote', 1 where not exists(select 1 from actuator where name='ir_remote' and fk_source=1);");
+    db.execDML("insert into source(name, fk_pi) select 'dht11', 1 where not exists(select 1 from source where name='dht11');");
+    db.execDML("insert into source(name, fk_pi) select 'rf', 1 where not exists(select 1 from source where name='rf');");
+    db.execDML("insert into source(name, fk_pi) select 'ir', 1 where not exists(select 1 from source where name='ir');");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'Local', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='Local');");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'Local', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='Local');");
+    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'rf_weather', 2 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather');");
+    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'rf_weather', 2 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather');");
+    db.execDML("insert into actuator(name, fk_source) select 'rf_button_1', 2 where not exists(select 1 from actuator where name='rf_button_1');");
+    db.execDML("insert into actuator(name, fk_source) select 'ir_remote_1', 3 where not exists(select 1 from actuator where name='ir_button_1');");
 }
 
 void cleanup(){
@@ -367,24 +370,23 @@ bool revoke_root(){
 
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << "<html><head><title>Test 63</title></head><body><center><h1>Asgard - Home Automation System</h1></center><br/><h3>Current informations</h3></html>" << std::endl;
+        response << "<html><head><title>Test</title></head><body><center><h1>Asgard - Home Automation System</h1></center><br/><h3>Current informations</h3></html>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nb_clicks << "<br/>" << std::endl;
 
-	for(std::size_t i = 0; i < max_sources; ++i){
+	for(std::size_t i = 0; i < sources.size(); ++i){
             source_t& source = sources[i];
-            if(source.active){
                 for(std::size_t sensor_id = 0; sensor_id < source.sensors.size(); ++sensor_id){
                     sensor_t& sensor = source.sensors[sensor_id];
-		    if(sensor.name == "Local"){
+		    if(sensor.name == "local"){
 			if(sensor.type == "TEMPERATURE"){
 			    response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
 			    response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
 			} else if(sensor.type == "HUMIDITY")
 			    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
-		    } else if(sensor.name == "rf_weather_1"){
+		    } else if(sensor.name == "rf_weather"){
 			if(sensor.type == "TEMPERATURE"){
 			    response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
 			    response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
@@ -395,98 +397,65 @@ struct display_controller : public Mongoose::WebController {
 
 		for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
                     actuator_t& actuator = source.actuators[actuator_id];
-		    if(actuator.name == "ir_remote"){
+		    if(actuator.name == "ir_button_1"){
 			response << "<br/>*********************************************" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
 			response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "<br/>" << std::endl;
 		    }
                 }
-            }
+            
         }
-<<<<<<< HEAD
-	
-	// TO IMPLEMENT
-	try {
-	    CppSQLite3Query sensor_db = db.execQuery("select name from sensor order by name;");
-            std::string last_sensor_name;
-            while (!sensor_db.eof()){
-	    	if(sensor_db.fieldValue(0) != last_sensor_name){
-		    last_sensor_name = sensor_db.fieldValue(0);
-		    std::cout << "Driver name : " << last_sensor_name << std::endl;
-	            CppSQLite3Query sensor_type = db.execQuery("select pk_sensor,type from sensor order by 1;");
-        	    std::string last_sensor_value;
-                    std::string last_sensor_type;
-                    while (!sensor_type.eof()){
-	    	    	if(sensor_type.fieldValue(1) != last_sensor_type){
-	   	    	    last_sensor_value = sensor_type.fieldValue(0);
-	   	    	    last_sensor_type = sensor_type.fieldValue(1);
-			    CppSQLite3Query sensor_data = db.execQuery("select data,fk_sensor from sensor_data order by 1;");
-                	    std::string last_sensor_data;
-                	    while (!sensor_data.eof()){
-	    	   	    	if(sensor_data.fieldValue(0) != last_sensor_data && last_sensor_value == sensor_data.fieldValue(1)){
-	   	    	            last_sensor_data = sensor_data.fieldValue(0);
-	        		    std::cout << last_sensor_type << " : " << last_sensor_data  << std::endl;
-			    	}
-            	                sensor_data.nextRow();
-			    }
-		        }
-            	        sensor_type.nextRow();
-            	    }
-	    	}
-            sensor_db.nextRow();
-=======
-
 	/* TO IMPLEMENT
 	try {
-	    CppSQLite3Query p = db.execQuery("select * from sensor order by 1;");
-            std::string last_value_1;
-            while (!p.eof()){
-		if(p.fieldValue(2) != last_value_1){
-		    last_value_1 = p.fieldValue(2);
-		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_value_1 << "</h3>" << std::endl;
-		}
-		CppSQLite3Query q = db.execQuery("select * from sensor_data order by 1;");
-		std::string last_value_2;
-		while (!q.eof()){
-		    last_value_2 = q.fieldValue(1);
-		    q.nextRow();
-		}
-		response << "&nbsp;&nbsp;&nbsp;Last Data : " << last_value_2 << "<br/>" << std::endl;
-		p.nextRow();
->>>>>>> upstream/master
+	    CppSQLite3Query sensor_name = db.execQuery("select name,type,pk_sensor from sensor order by name;");
+            std::string last_sensor_name;
+            std::string last_sensor_type;
+            int last_sensor_pk;
+            while (!sensor_name.eof()){
+		last_sensor_name = sensor_name.fieldValue(0);
+		last_sensor_type = sensor_name.fieldValue(1);
+		last_sensor_pk = sensor_name.getIntField(2);
+		std::cout << "Driver name : " << last_sensor_name << std::endl;
+		CppSQLite3Buffer bufSQL;
+        	bufSQL.format("select data from sensor_data where fk_sensor=%d", last_sensor_pk);
+        	std::string query_result(bufSQL);
+		CppSQLite3Query temperature_data = db.execQuery(query_result.c_str());
+               	std::string last_temperature_data;
+                while (!temperature_data.eof()){
+	   	    last_temperature_data = temperature_data.fieldValue(0);
+		    if(last_sensor_type=="TEMPERATURE"){
+	        	std::cout << "Temperature : " << last_temperature_data  << std::endl;
+		    } else if(last_sensor_type=="HUMIDITY"){
+	        	std::cout << "Humidity : " << last_temperature_data  << std::endl;
+		    } else {
+	        	std::cout << "Other : " << last_temperature_data  << std::endl;
+		    }
+            	    temperature_data.nextRow();
+            	}	    		 
+                sensor_name.nextRow();
             }
-	    CppSQLite3Query actuator_db = db.execQuery("select pk_actuator,name from actuator order by name;");
-	    std::string last_actuator_value;
+
+	    CppSQLite3Query actuator_name = db.execQuery("select pk_actuator,name from actuator order by name;");
+	    int last_actuator_pk;
 	    std::string last_actuator_name;
-            while (!actuator_db.eof()){
-		if(actuator_db.fieldValue(1) != last_actuator_name){
-		    last_actuator_value = actuator_db.fieldValue(0);
-		    last_actuator_name = actuator_db.fieldValue(1);
-		    std::cout << "Driver name : " << last_actuator_name << std::endl;
-	        }
-	    CppSQLite3Query actuator_data_db = db.execQuery("select data,fk_actuator from actuator_data order by 1;");
-            std::string last_actuator_data;
-            while (!actuator_data_db.eof()){
-	    	if(actuator_data_db.fieldValue(0) != last_actuator_data && last_actuator_value == actuator_data_db.fieldValue(1)){
+            while (!actuator_name.eof()){
+	    	last_actuator_pk = actuator_name.getIntField(0);
+	    	last_actuator_name = actuator_name.fieldValue(1);
+	    	std::cout << "Driver name : " << last_actuator_name << std::endl;
+	    	CppSQLite3Buffer buffSQL;
+            	buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
+            	std::string query_result(buffSQL);
+	    	CppSQLite3Query actuator_data_db = db.execQuery(query_result.c_str());
+            	std::string last_actuator_data;
+            	while (!actuator_data_db.eof()){
 	    	    last_actuator_data = actuator_data_db.fieldValue(0);
 	    	    std::cout << "Last input : " << last_actuator_data << std::endl;
-		}
-<<<<<<< HEAD
-            	actuator_data_db.nextRow();
-=======
-		CppSQLite3Query s = db.execQuery("select * from sensor_data order by 1;");
-		std::string last_value_4;
-		while (!s.eof()){
-		    last_value_4 = s.fieldValue(1);
-		    s.nextRow();
-		}
-		response << "&nbsp;&nbsp;&nbsp;Last input : " << last_value_4 << "<br/>" << std::endl;
-		r.nextRow();
->>>>>>> upstream/master
+            	    actuator_data_db.nextRow();
+            	}
+                actuator_name.nextRow();
             }
-            actuator_db.nextRow();
-        } catch (CppSQLite3Exception& e){
-        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
+	} catch (CppSQLite3Exception& e){
+            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        }*/
     }
 
     //This will be called automatically
@@ -529,3 +498,5 @@ int main(){
 
     return run();
 }
+
+
