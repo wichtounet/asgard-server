@@ -113,6 +113,14 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
+	try {
+	    CppSQLite3Buffer bufSQL;
+	    bufSQL.format("insert into source(name,fk_pi) select \"%s\",1 where not exists(select 1 from source where name=\"%s\");", source.name.c_str(), source.name.c_str());
+	    db.execDML(bufSQL);
+	} catch (CppSQLite3Exception& e){
+	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+	}
+
 	 std::cout << "asgard: new source registered " << source.id << " : " << source.name << std::endl;
     } else if(command == "UNREG_SOURCE"){
 	nb_drivers--;
@@ -145,6 +153,20 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             std::perror("asgard:server: failed to answer");
             return;
         }
+
+	try {
+	    CppSQLite3Buffer bufSQL;
+	    if(sensor.name=="local"){
+	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',1 where not exists(select 1 from sensor where type=\"%s\" and name='local');", sensor.type.c_str(), sensor.type.c_str());
+	    } else if(sensor.name=="rf_weather"){
+	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',2 where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');", sensor.type.c_str(), sensor.type.c_str());
+	    } else {
+	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",\"%s\",4 where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");", sensor.type.c_str(), sensor.name.c_str(), sensor.type.c_str(), sensor.name.c_str());
+	    }
+	    db.execDML(bufSQL);
+	} catch (CppSQLite3Exception& e){
+	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+	}
 
         std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
     } else if(command == "UNREG_SENSOR"){
@@ -182,6 +204,20 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             std::perror("asgard:server: failed to answer");
             return;
         }
+
+	try {
+	    CppSQLite3Buffer bufSQL;
+	    if(actuator.name=="rf_button_1"){
+	    	bufSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',2 where not exists(select 1 from actuator where name='rf_button_1');");
+	    } else if(actuator.name=="ir_button_1"){
+	    	bufSQL.format("insert into actuator(name,fk_source) select 'ir_button_1',3 where not exists(select 1 from actuator where name='ir_button_1');");
+	    } else {
+	    	bufSQL.format("insert into actuator(name,fk_source) select \"%s\",5 where not exists(select 1 from actuator where and name=\"%s\");", actuator.name.c_str(), actuator.name.c_str());
+	    }
+	    db.execDML(bufSQL);
+	} catch (CppSQLite3Exception& e){
+	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+	}
 
         std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
     } else if(command == "UNREG_ACTUATOR"){
@@ -314,8 +350,8 @@ void db_create(){
         // Create tables
 	db_table();
 
-        // Perform insertions
-        db_insert();
+        // Perform pi insertions
+    	db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
 
     } catch (CppSQLite3Exception& e){
         std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -329,19 +365,6 @@ void db_table(){
     db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
     db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
-}
-
-void db_insert(){
-    db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-    db.execDML("insert into source(name, fk_pi) select 'dht11', 1 where not exists(select 1 from source where name='dht11');");
-    db.execDML("insert into source(name, fk_pi) select 'rf', 1 where not exists(select 1 from source where name='rf');");
-    db.execDML("insert into source(name, fk_pi) select 'ir', 1 where not exists(select 1 from source where name='ir');");
-    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'local', 1 where not exists(select 1 from sensor where type='TEMPERATURE' and name='local');");
-    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'local', 1 where not exists(select 1 from sensor where type='HUMIDITY' and name='local');");
-    db.execDML("insert into sensor(type, name, fk_source) select 'TEMPERATURE', 'rf_weather', 2 where not exists(select 1 from sensor where type='TEMPERATURE' and name='rf_weather');");
-    db.execDML("insert into sensor(type, name, fk_source) select 'HUMIDITY', 'rf_weather', 2 where not exists(select 1 from sensor where type='HUMIDITY' and name='rf_weather');");
-    db.execDML("insert into actuator(name, fk_source) select 'rf_button_1', 2 where not exists(select 1 from actuator where name='rf_button_1');");
-    db.execDML("insert into actuator(name, fk_source) select 'ir_button_1', 3 where not exists(select 1 from actuator where name='ir_button_1');");
 }
 
 void cleanup(){
@@ -417,10 +440,9 @@ struct display_controller : public Mongoose::WebController {
 		}
             }
         }
-	// TO IMPLEMENT
+	/* TO IMPLEMENT
 	try {
 	    CppSQLite3Query sensor_name = db.execQuery("select pk_sensor,name,type from sensor order by name;");
-	    int row=1;
             int last_sensor_pk;
             std::string last_sensor_name;
             std::string last_sensor_type;
@@ -428,9 +450,6 @@ struct display_controller : public Mongoose::WebController {
 	    	last_sensor_pk = sensor_name.getIntField(0);
 	    	last_sensor_name = sensor_name.fieldValue(1);
 	    	last_sensor_type = sensor_name.fieldValue(2);
-	    	if(row%2){
-	            std::cout << "Driver name : " << last_sensor_name << std::endl;
-	    	}
 		CppSQLite3Buffer bufSQL;
             	bufSQL.format("select data from sensor_data where fk_sensor=%d", last_sensor_pk);
             	std::string query_result(bufSQL);
@@ -439,6 +458,7 @@ struct display_controller : public Mongoose::WebController {
             	while (!temperature_data.eof()){
 	   	    last_temperature_data = temperature_data.fieldValue(0);
 		    if(last_sensor_type=="TEMPERATURE"){
+	        	std::cout << "Driver name : " << last_sensor_name << std::endl;
 	            	std::cout << "Temperature : " << last_temperature_data  << std::endl;
 		    } else if(last_sensor_type=="HUMIDITY"){
 	            	std::cout << "Humidity : " << last_temperature_data  << std::endl;
@@ -448,7 +468,6 @@ struct display_controller : public Mongoose::WebController {
             	    temperature_data.nextRow();
             	}	    	
             	sensor_name.nextRow();
-	    	row++;
             }
 
 	    CppSQLite3Query actuator_name = db.execQuery("select pk_actuator,name from actuator order by name;");
@@ -480,7 +499,7 @@ struct display_controller : public Mongoose::WebController {
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-    }
+    }*/
 
     //This will be called automatically
     void setup(){
