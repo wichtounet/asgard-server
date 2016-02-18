@@ -39,7 +39,7 @@ const std::size_t max_sources = 32;
 
 const char* socket_path = "/tmp/asgard_socket";
 
-int socket_fd, nb_drivers = 0, nb_actuators = 0, nb_sensors = 0, nb_clicks = 0;
+int socket_fd, nb_drivers = 0, nb_actuators = 0, nb_sensors = 0;
 
 // Allocate space for the buffers
 char receive_buffer[socket_buffer_size];
@@ -49,13 +49,11 @@ struct sensor_t {
     std::size_t id;
     std::string type;
     std::string name;
-    std::string data;
 };
 
 struct actuator_t {
     std::size_t id;
     std::string name;
-    std::string data;
 };
 
 struct source_t {
@@ -79,7 +77,7 @@ source_t& select_source(std::size_t source_id){
 	}
     }
     
-    std::cerr << "asgard:server: Invalid request for source id " << source_id << std::endl;
+    std::cerr << "asgard: server: Invalid request for source id " << source_id << std::endl;
 
     return sources.front();
 }
@@ -109,14 +107,14 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	// Give the source id back to the client
 	auto nbytes = snprintf(write_buffer, 4096, "%d", source.id);
 	if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
-            std::perror("asgard:server: failed to answer");
+            std::perror("asgard: server: failed to answer");
             return;
         }
 
 	try {
-	    CppSQLite3Buffer bufSQL;
-	    bufSQL.format("insert into source(name,fk_pi) select \"%s\",1 where not exists(select 1 from source where name=\"%s\");", source.name.c_str(), source.name.c_str());
-	    db.execDML(bufSQL);
+	    CppSQLite3Buffer buffSQL;
+	    buffSQL.format("insert into source(name,fk_pi) select \"%s\",1 where not exists(select 1 from source where name=\"%s\");", source.name.c_str(), source.name.c_str());
+	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -150,20 +148,20 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	// Give the sensor id back to the client
 	auto nbytes = snprintf(write_buffer, 4096, "%d", sensor.id);
 	if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
-            std::perror("asgard:server: failed to answer");
+            std::perror("asgard: server: failed to answer");
             return;
         }
 
 	try {
-	    CppSQLite3Buffer bufSQL;
+	    CppSQLite3Buffer buffSQL;
 	    if(sensor.name=="local"){
-	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',1 where not exists(select 1 from sensor where type=\"%s\" and name='local');", sensor.type.c_str(), sensor.type.c_str());
+	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"dht11\";");
+	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',%d where not exists(select 1 from sensor where type=\"%s\" and name='local');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
 	    } else if(sensor.name=="rf_weather"){
-	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',2 where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');", sensor.type.c_str(), sensor.type.c_str());
-	    } else {
-	    	bufSQL.format("insert into sensor(type,name,fk_source) select \"%s\",\"%s\",4 where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");", sensor.type.c_str(), sensor.name.c_str(), sensor.type.c_str(), sensor.name.c_str());
+	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"rf\";");
+	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',%d where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
 	    }
-	    db.execDML(bufSQL);
+	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -201,20 +199,20 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	// Give the sensor id back to the client
 	auto nbytes = snprintf(write_buffer, 4096, "%d", actuator.id);
 	if(sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr *) &client_address, address_length) < 0){
-            std::perror("asgard:server: failed to answer");
+            std::perror("asgard: server: failed to answer");
             return;
         }
 
 	try {
-	    CppSQLite3Buffer bufSQL;
+	    CppSQLite3Buffer buffSQL;
 	    if(actuator.name=="rf_button_1"){
-	    	bufSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',2 where not exists(select 1 from actuator where name='rf_button_1');");
+	    	int actuator_pk = db.execScalar("select pk_source from source where name=\"rf\";");
+	    	buffSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',%d where not exists(select 1 from actuator where name='rf_button_1');", actuator_pk);
 	    } else if(actuator.name=="ir_button_1"){
-	    	bufSQL.format("insert into actuator(name,fk_source) select 'ir_button_1',3 where not exists(select 1 from actuator where name='ir_button_1');");
-	    } else {
-	    	bufSQL.format("insert into actuator(name,fk_source) select \"%s\",5 where not exists(select 1 from actuator where and name=\"%s\");", actuator.name.c_str(), actuator.name.c_str());
+	    	int actuator_pk = db.execScalar("select pk_source from source where name=\"ir\";");
+	    	buffSQL.format("insert into actuator(name,fk_source) select 'ir_button_1',%d where not exists(select 1 from actuator where name='ir_button_1');", actuator_pk);
 	    }
-	    db.execDML(bufSQL);
+	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -248,25 +246,19 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source = select_source(source_id);
 	auto& sensor = source.sensors[sensor_id];
 
-	sensor.data = data;
-
 	try {
+	    CppSQLite3Buffer buffSQL;
+	    buffSQL.format("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
+	    int sensor_pk = db.execScalar(buffSQL);
 	    CppSQLite3Buffer bufSQL;
-	    if(sensor.name == "local"){
-	    	bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+1);
-	    } else if (sensor.name == "rf_weather"){
-	    	bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+3);
-	    } else {
-	    	bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_id+5);
-	    }
+	    bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
 	    db.execDML(bufSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
 
-	std::cout << "asgard:server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
+	std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
     } else if(command == "EVENT"){
-	nb_clicks++;
         int source_id;
 	message_ss >> source_id;
 
@@ -279,23 +271,18 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source = select_source(source_id);
 	auto& actuator = source.actuators[actuator_id];
 
-	actuator.data = data;
-
 	try {
 	    CppSQLite3Buffer buffSQL;
-	    if(actuator.name == "rf_button_1"){
-		buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 1);", data.c_str());
-	    } else if(actuator.name == "ir_button_1"){
-		buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 2);", data.c_str());
-	    } else {
-		buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", 3);", data.c_str());
-	    }
-	    db.execDML(buffSQL);
+	    buffSQL.format("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
+	    int actuator_pk = db.execScalar(buffSQL);
+	    CppSQLite3Buffer bufSQL;
+	    bufSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
+	    db.execDML(bufSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
 
-	std::cout << "asgard:server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
+	std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
     }
 }
 
@@ -350,7 +337,7 @@ void db_create(){
         // Create tables
 	db_table();
 
-        // Perform pi insertions
+        // Perform pi insertion
     	db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
 
     } catch (CppSQLite3Exception& e){
@@ -375,7 +362,7 @@ void cleanup(){
 }
 
 void terminate(int /*signo*/){
-    std::cout << "asgard:server: stopping the server" << std::endl;
+    std::cout << "asgard: server: stopping the server" << std::endl;
 
     cleanup();
 
@@ -409,38 +396,7 @@ struct display_controller : public Mongoose::WebController {
 	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nb_clicks << "<br/>" << std::endl;
 
-	for(std::size_t i = 0; i < sources.size(); ++i){
-            source_t& source = sources[i];
-            for(std::size_t sensor_id = 0; sensor_id < source.sensors.size(); ++sensor_id){
-                sensor_t& sensor = source.sensors[sensor_id];
-		if(sensor.name == "local"){
-		    if(sensor.type == "TEMPERATURE"){
-			response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-			response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
-		    } else if(sensor.type == "HUMIDITY"){
-			response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
-		    }
-		} else if(sensor.name == "rf_weather"){
-		    if(sensor.type == "TEMPERATURE"){
-			response << "<br/>*********************************************" << "<h3>Driver name : " << sensor.name << "</h3>" << std::endl;
-			response << "&nbsp;&nbsp;&nbsp;Temperature : " << sensor.data << " Celsius<br/>" << std::endl;
-		    } else if(sensor.type == "HUMIDITY"){
-			response << "&nbsp;&nbsp;&nbsp;Air humidity : " << sensor.data << " %<br/>" << std::endl;
-		    }
-                }
-	    }
-
-	    for(std::size_t actuator_id = 0; actuator_id < source.actuators.size(); ++actuator_id){
-                actuator_t& actuator = source.actuators[actuator_id];
-		if(actuator.name == "ir_button_1"){
-		    response << "<br/>*********************************************" << "<h3>Driver name : " << actuator.name << "</h3>" << std::endl;
-		    response << "&nbsp;&nbsp;&nbsp;Last input : " << actuator.data << "<br/>" << std::endl;
-		}
-            }
-        }
-	/* TO IMPLEMENT
 	try {
 	    CppSQLite3Query sensor_name = db.execQuery("select pk_sensor,name,type from sensor order by name;");
             int last_sensor_pk;
@@ -450,23 +406,23 @@ struct display_controller : public Mongoose::WebController {
 	    	last_sensor_pk = sensor_name.getIntField(0);
 	    	last_sensor_name = sensor_name.fieldValue(1);
 	    	last_sensor_type = sensor_name.fieldValue(2);
-		CppSQLite3Buffer bufSQL;
-            	bufSQL.format("select data from sensor_data where fk_sensor=%d", last_sensor_pk);
-            	std::string query_result(bufSQL);
-	    	CppSQLite3Query temperature_data = db.execQuery(query_result.c_str());
-            	std::string last_temperature_data;
-            	while (!temperature_data.eof()){
-	   	    last_temperature_data = temperature_data.fieldValue(0);
-		    if(last_sensor_type=="TEMPERATURE"){
-	        	std::cout << "Driver name : " << last_sensor_name << std::endl;
-	            	std::cout << "Temperature : " << last_temperature_data  << std::endl;
-		    } else if(last_sensor_type=="HUMIDITY"){
-	            	std::cout << "Humidity : " << last_temperature_data  << std::endl;
-		    } else {
-	            	std::cout << "Other : " << last_temperature_data  << std::endl;
-		    }   
-            	    temperature_data.nextRow();
-            	}	    	
+		CppSQLite3Buffer buffSQL;
+            	buffSQL.format("select data from sensor_data where fk_sensor=%d", last_sensor_pk);
+            	std::string query_result(buffSQL);
+	    	CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
+            	std::string last_sensor_data;
+            	while (!sensor_data.eof()){
+	   	    last_sensor_data = sensor_data.fieldValue(0);
+            	    sensor_data.nextRow();
+            	}
+		if(last_sensor_type=="TEMPERATURE"){
+		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
+		    response << "&nbsp;&nbsp;&nbsp;Temperature : " << last_sensor_data << " Celsius<br/>" << std::endl;
+		} else if(last_sensor_type=="HUMIDITY"){
+		    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << last_sensor_data << " %<br/>" << std::endl;
+		} else {
+		    response << "&nbsp;&nbsp;&nbsp;Other : " << last_sensor_data << " %<br/>" << std::endl;
+		}
             	sensor_name.nextRow();
             }
 
@@ -476,7 +432,7 @@ struct display_controller : public Mongoose::WebController {
             while (!actuator_name.eof()){
 	    	last_actuator_pk = actuator_name.getIntField(0);
 	    	last_actuator_name = actuator_name.fieldValue(1);
-	    	std::cout << "Driver name : " << last_actuator_name << std::endl;
+		response << "<br/>*********************************************" << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
 	    	if(last_actuator_name=="ir_button_1"){
 	    	    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
@@ -485,21 +441,21 @@ struct display_controller : public Mongoose::WebController {
             	    std::string last_actuator_data;
             	    while (!actuator_data.eof()){
 	    	   	last_actuator_data = actuator_data.fieldValue(0);
-	    	   	std::cout << "Last input : " << last_actuator_data << std::endl;
             	  	actuator_data.nextRow();
             	    }
+		    response << "&nbsp;&nbsp;&nbsp;Last input : " << last_actuator_data << "<br/>" << std::endl;
 	    	} else if (last_actuator_name=="rf_button_1") {
 		    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select count(data) from actuator_data where fk_actuator=%d", last_actuator_pk);
 	    	    int nbClicks = db.execScalar(buffSQL);
-		    std::cout << "Number of clicks : " << nbClicks << std::endl;
+		    response << "&nbsp;&nbsp;&nbsp;Number of clicks : " << nbClicks << "<br/>" << std::endl;
 	    	}
             	actuator_name.nextRow();
             }
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-    }*/
+    }
 
     //This will be called automatically
     void setup(){
