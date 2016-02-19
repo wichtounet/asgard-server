@@ -290,7 +290,7 @@ int run(){
     // Create the socket
     socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
     if(socket_fd < 0){
-        std::cerr << "socket() failed\n" << std::endl;
+        std::cerr << "socket() failed" << std::endl;
         return 1;
     }
 
@@ -305,7 +305,7 @@ int run(){
 
     // Bind
     if(::bind(socket_fd, (struct sockaddr *) &server_address, sizeof(server_address)) < 0){
-        std::cerr << "bind() failed\n" << std::endl;
+        std::cerr << "bind() failed" << std::endl;
 	close(socket_fd);
         return 1;
     }
@@ -315,7 +315,7 @@ int run(){
         socklen_t address_length = sizeof(struct sockaddr_un);
 
         // Wait for one message
-        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size - 1, 0, (struct sockaddr *) &client_address, &address_length);
+        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size-1, 0, (struct sockaddr *) &client_address, &address_length);
         receive_buffer[bytes_received] = '\0';
 
         // Handle the message
@@ -390,9 +390,88 @@ bool revoke_root(){
     return true;
 }
 
+std::string header = R"=====(
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="refresh" content="30">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+</head>
+<body>
+<center>
+<h1>Asgard - Home Automation System</h1>
+</center><br/>
+<h3>Current informations</h3>
+<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+<script>
+function addZero(i) {
+  if (i < 10) {
+    i = "0" + i;
+  }
+  return i;
+}
+var currentdate = new Date();
+var datetime = [];
+for (var i = 0; i < 12; ++i) {
+  datetime[i] = addZero(currentdate.getDate()) + "-" + addZero(currentdate.getMonth() + 1) + "-" + addZero(currentdate.getFullYear()) + " " + addZero(currentdate.getHours()-i) + ":" + addZero(currentdate.getMinutes()) + ":" + addZero(currentdate.getSeconds());
+}
+
+$(function() {
+  $('#container').highcharts({
+    title: {
+      text: 'Daily Average Temperature',
+      x: -20 //center
+    },
+    subtitle: {
+      text: 'Last 12 hours from ' + datetime[0],
+      x: -20
+    },
+    xAxis: {
+      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
+      labels: {
+       	enabled: false
+      },
+      tickLength: 0
+    },
+    yAxis: {
+      title: {
+        text: 'Temperature (°C)'
+      },
+      plotLines: [{
+        value: 0,
+        width: 1,
+        color: '#808080'
+      }]
+    },
+    tooltip: {
+      valueSuffix: '°C'
+    },
+    legend: {
+      layout: 'vertical',
+      align: 'right',
+      verticalAlign: 'middle',
+      borderWidth: 0
+    },
+    series: [{
+      name: 'local',
+      data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
+    }, {
+      name: 'rf_weather',
+      data: [1.8, 3.4, 5.7, 11.3, 17.0, 22.0, 24.8, 24.1, 20.1, 14.1, 8.6, 2.5]
+    }]
+  });
+});
+
+</script>
+)=====";
+
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << "<html><head><title>Test</title></head><body><center><h1>Asgard - Home Automation System</h1></center><br/><h3>Current informations</h3></html>" << std::endl;
+        response << header << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
@@ -417,7 +496,7 @@ struct display_controller : public Mongoose::WebController {
             	}
 		if(last_sensor_type=="TEMPERATURE"){
 		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
-		    response << "&nbsp;&nbsp;&nbsp;Temperature : " << last_sensor_data << " Celsius<br/>" << std::endl;
+		    response << "&nbsp;&nbsp;&nbsp;Temperature : " << last_sensor_data << " °C<br/>" << std::endl;
 		} else if(last_sensor_type=="HUMIDITY"){
 		    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << last_sensor_data << " %<br/>" << std::endl;
 		} else {
@@ -455,6 +534,7 @@ struct display_controller : public Mongoose::WebController {
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
+		    response << "</html>" << std::endl;
     }
 
     //This will be called automatically
