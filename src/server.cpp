@@ -394,7 +394,7 @@ std::string header = R"=====(
 <!DOCTYPE html>
 <html>
 <head>
-<title>Test</title>
+<title>Asgard - Home Automation System</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta http-equiv="refresh" content="30">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
@@ -406,7 +406,6 @@ std::string header = R"=====(
 <h1>Asgard - Home Automation System</h1>
 </center><br/>
 <h3>Current informations</h3>
-<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 <script>
 function addZero(i) {
   if (i < 10) {
@@ -421,14 +420,13 @@ for (var i = 0; i < 12; ++i) {
 }
 
 $(function() {
-  $('#container').highcharts({
+  $('#local_temperature').highcharts({
     title: {
-      text: 'Daily Average Temperature',
-      x: -20 //center
+      text: ''
     },
     subtitle: {
-      text: 'Last 12 hours from ' + datetime[0],
-      x: -20
+      text: 'Temperature - last 12 hours from ' + datetime[0],
+      x: 20
     },
     xAxis: {
       categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
@@ -447,25 +445,162 @@ $(function() {
         color: '#808080'
       }]
     },
+    plotOptions: {
+      line: {
+	 animation: false
+      }
+    },
+    exporting: {
+      enabled: false
+    },
+    credits: {
+      enabled: false
+    },
     tooltip: {
       valueSuffix: '°C'
     },
-    legend: {
-      layout: 'vertical',
-      align: 'right',
-      verticalAlign: 'middle',
-      borderWidth: 0
-    },
     series: [{
+      showInLegend: false,
       name: 'local',
       data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
-    }, {
+    }]
+  });
+  $('#local_humidity').highcharts({
+    title: {
+      text: ''
+    },
+    subtitle: {
+      text: 'Humidity - last 12 hours from ' + datetime[0],
+      x: 20
+    },
+    xAxis: {
+      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
+      labels: {
+       	enabled: false
+      },
+      tickLength: 0
+    },
+    yAxis: {
+      title: {
+        text: 'Humidity (%)'
+      },
+      plotLines: [{
+        value: 0,
+        width: 1,
+        color: '#808080'
+      }]
+    },
+    plotOptions: {
+      line: {
+	 animation: false
+      }
+    },
+    exporting: {
+      enabled: false
+    },
+    credits: {
+      enabled: false
+    },
+    tooltip: {
+      valueSuffix: '%'
+    },
+    series: [{
+      showInLegend: false,
+      name: 'local',
+      data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]
+    }]
+  });
+  $('#rf_weather_temperature').highcharts({
+    title: {
+      text: ''
+    },
+    subtitle: {
+      text: 'Temperature - last 12 hours from ' + datetime[0],
+      x: 20
+    },
+    xAxis: {
+      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
+      labels: {
+       	enabled: false
+      },
+      tickLength: 0
+    },
+    yAxis: {
+      title: {
+        text: 'Temperature (°C)'
+      },
+      plotLines: [{
+        value: 0,
+        width: 1,
+        color: '#808080'
+      }]
+    },
+    plotOptions: {
+      line: {
+	 animation: false
+      }
+    },
+    exporting: {
+      enabled: false
+    },
+    credits: {
+      enabled: false
+    },
+    tooltip: {
+      valueSuffix: '°C'
+    },
+    series: [{
+      showInLegend: false,
       name: 'rf_weather',
-      data: [1.8, 3.4, 5.7, 11.3, 17.0, 22.0, 24.8, 24.1, 20.1, 14.1, 8.6, 2.5]
+      data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
+    }]
+  });
+  $('#rf_weather_humidity').highcharts({
+    title: {
+      text: ''
+    },
+    subtitle: {
+      text: 'Humidity - last 12 hours from ' + datetime[0],
+      x: 20
+    },
+    xAxis: {
+      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
+      labels: {
+       	enabled: false
+      },
+      tickLength: 0
+    },
+    yAxis: {
+      title: {
+        text: 'Humidity (%)'
+      },
+      plotLines: [{
+        value: 0,
+        width: 1,
+        color: '#808080'
+      }]
+    },
+    plotOptions: {
+      line: {
+	 animation: false
+      }
+    },
+    exporting: {
+      enabled: false
+    },
+    credits: {
+      enabled: false
+    },
+    tooltip: {
+      valueSuffix: '%'
+    },
+    series: [{
+      showInLegend: false,
+      name: 'rf_weather',
+      data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]
     }]
   });
 });
-
 </script>
 )=====";
 
@@ -494,11 +629,18 @@ struct display_controller : public Mongoose::WebController {
 	   	    last_sensor_data = sensor_data.fieldValue(0);
             	    sensor_data.nextRow();
             	}
-		if(last_sensor_type=="TEMPERATURE"){
-		    response << "<br/>*********************************************" << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
-		    response << "&nbsp;&nbsp;&nbsp;Temperature : " << last_sensor_data << " °C<br/>" << std::endl;
-		} else if(last_sensor_type=="HUMIDITY"){
-		    response << "&nbsp;&nbsp;&nbsp;Air humidity : " << last_sensor_data << " %<br/>" << std::endl;
+		if(last_sensor_type == "TEMPERATURE"){
+		    response << "<br/>******************************************************************************************" << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
+		    response << "&nbsp;&nbsp;&nbsp;Current temperature : " << last_sensor_data << "°C<br/>" << std::endl;
+		} else if(last_sensor_type == "HUMIDITY"){
+		    response << "&nbsp;&nbsp;&nbsp;Current air humidity : " << last_sensor_data << "%<br/>" << std::endl;
+		    if(last_sensor_name == "local"){
+		    	response << "<br/><div id=\"local_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    	response << "<br/><div id=\"local_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    } else if(last_sensor_name == "rf_weather"){
+		    	response << "<br/><div id=\"rf_weather_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    	response << "<br/><div id=\"rf_weather_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    }
 		} else {
 		    response << "&nbsp;&nbsp;&nbsp;Other : " << last_sensor_data << " %<br/>" << std::endl;
 		}
@@ -511,7 +653,7 @@ struct display_controller : public Mongoose::WebController {
             while (!actuator_name.eof()){
 	    	last_actuator_pk = actuator_name.getIntField(0);
 	    	last_actuator_name = actuator_name.fieldValue(1);
-		response << "<br/>*********************************************" << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
+		response << "<br/>******************************************************************************************" << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
 	    	if(last_actuator_name=="ir_button_1"){
 	    	    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
@@ -523,7 +665,7 @@ struct display_controller : public Mongoose::WebController {
             	  	actuator_data.nextRow();
             	    }
 		    response << "&nbsp;&nbsp;&nbsp;Last input : " << last_actuator_data << "<br/>" << std::endl;
-	    	} else if (last_actuator_name=="rf_button_1") {
+	    	} else if (last_actuator_name == "rf_button_1") {
 		    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select count(data) from actuator_data where fk_actuator=%d", last_actuator_pk);
 	    	    int nbClicks = db.execScalar(buffSQL);
@@ -534,7 +676,7 @@ struct display_controller : public Mongoose::WebController {
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-		    response << "</html>" << std::endl;
+		    response << "<br/></html>" << std::endl;
     }
 
     //This will be called automatically
