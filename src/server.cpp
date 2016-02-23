@@ -154,10 +154,10 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
 	try {
 	    CppSQLite3Buffer buffSQL;
-	    if(sensor.name=="local"){
+	    if(sensor.name == "local"){
 	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"dht11\";");
 	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',%d where not exists(select 1 from sensor where type=\"%s\" and name='local');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
-	    } else if(sensor.name=="rf_weather"){
+	    } else if(sensor.name == "rf_weather"){
 	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"rf\";");
 	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',%d where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
 	    }
@@ -205,7 +205,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
 	try {
 	    CppSQLite3Buffer buffSQL;
-	    if(actuator.name=="rf_button_1"){
+	    if(actuator.name == "rf_button_1"){
 	    	int actuator_pk = db.execScalar("select pk_source from source where name=\"rf\";");
 	    	buffSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',%d where not exists(select 1 from actuator where name='rf_button_1');", actuator_pk);
 	    } else if(actuator.name=="ir_button_1"){
@@ -396,7 +396,7 @@ std::string header = R"=====(
 <head>
 <title>Asgard - Home Automation System</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta http-equiv="refresh" content="30">
+<meta http-equiv="refresh" content="60">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
@@ -406,6 +406,9 @@ std::string header = R"=====(
 <h1>Asgard - Home Automation System</h1>
 </center><br/>
 <h3>Current informations</h3>
+)=====";
+
+std::string graph = R"=====(
 <script>
 function addZero(i) {
   if (i < 10) {
@@ -413,6 +416,7 @@ function addZero(i) {
   }
   return i;
 }
+
 var currentdate = new Date();
 var datetime = [];
 for (var i = 0; i < 12; ++i) {
@@ -438,12 +442,7 @@ $(function() {
     yAxis: {
       title: {
         text: 'Temperature (°C)'
-      },
-      plotLines: [{
-        value: 0,
-        width: 1,
-        color: '#808080'
-      }]
+      }
     },
     plotOptions: {
       line: {
@@ -465,7 +464,10 @@ $(function() {
       data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
     }]
   });
-  $('#local_humidity').highcharts({
+});
+</script>
+)=====";
+  /*$('#local_humidity').highcharts({
     title: {
       text: ''
     },
@@ -483,12 +485,7 @@ $(function() {
     yAxis: {
       title: {
         text: 'Humidity (%)'
-      },
-      plotLines: [{
-        value: 0,
-        width: 1,
-        color: '#808080'
-      }]
+      }
     },
     plotOptions: {
       line: {
@@ -528,12 +525,7 @@ $(function() {
     yAxis: {
       title: {
         text: 'Temperature (°C)'
-      },
-      plotLines: [{
-        value: 0,
-        width: 1,
-        color: '#808080'
-      }]
+      }
     },
     plotOptions: {
       line: {
@@ -573,12 +565,7 @@ $(function() {
     yAxis: {
       title: {
         text: 'Humidity (%)'
-      },
-      plotLines: [{
-        value: 0,
-        width: 1,
-        color: '#808080'
-      }]
+      }
     },
     plotOptions: {
       line: {
@@ -602,7 +589,7 @@ $(function() {
   });
 });
 </script>
-)=====";
+)=====";*/
 
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
@@ -610,6 +597,7 @@ struct display_controller : public Mongoose::WebController {
 	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
+        response << graph << std::endl;
 
 	try {
 	    CppSQLite3Query sensor_name = db.execQuery("select pk_sensor,name,type from sensor order by name;");
@@ -635,12 +623,67 @@ struct display_controller : public Mongoose::WebController {
 		} else if(last_sensor_type == "HUMIDITY"){
 		    response << "&nbsp;&nbsp;&nbsp;Current air humidity : " << last_sensor_data << "%<br/>" << std::endl;
 		    if(last_sensor_name == "local"){
-		    	response << "<br/><div id=\"local_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    	response << "<br/><div id=\"local_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    } else if(last_sensor_name == "rf_weather"){
-		    	response << "<br/><div id=\"rf_weather_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    	response << "<br/><div id=\"rf_weather_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    }
+		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><script>" <<
+"function addZero(i) {" <<
+  "if (i < 10) {" <<
+    "i = \"0\" + i;" <<
+  "}" <<
+  "return i;" <<
+"}" <<
+
+"var currentdate = new Date();" <<
+"var datetime = [];" <<
+"for (var i = 0; i < 12; ++i) {" <<
+  "datetime[i] = addZero(currentdate.getDate()) + \"-\" + addZero(currentdate.getMonth() + 1) + \"-\" + addZero(currentdate.getFullYear()) + \" \" + addZero(currentdate.getHours()-i) + \":\" + addZero(currentdate.getMinutes()) + \":\" + addZero(currentdate.getSeconds());" <<
+"}" <<
+
+"$(function() {" <<
+  "$('#local_humidity').highcharts({" <<
+    "title: {" <<
+      "text: ''" <<
+    "}," <<
+    "subtitle: {" <<
+      "text: 'Humidity - last 12 hours from ' + datetime[0]," <<
+      "x: 20" <<
+    "}," <<
+    "xAxis: {" <<
+      "categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]]," <<
+      "labels: {" <<
+       	"enabled: false" <<
+      "}," <<
+      "tickLength: 0" <<
+    "}," <<
+    "yAxis: {" <<
+      "title: {" <<
+        "text: 'Humidity (%)'" <<
+      "}" <<
+    "}," <<
+    "plotOptions: {" <<
+      "line: {" <<
+	 "animation: false" <<
+      "}" <<
+    "}," <<
+    "exporting: {" <<
+      "enabled: false" <<
+    "}," <<
+    "credits: {" <<
+      "enabled: false" <<
+    "}," <<
+    "tooltip: {" <<
+      "valueSuffix: '%'" <<
+    "}," <<
+    "series: [{" <<
+      "showInLegend: false," <<
+      "name: 'local'," <<
+      "data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]" <<
+    "}]" <<
+  "});" <<
+"});" << "</script>" << std::endl;
+		    } /*else if(last_sensor_name == "rf_weather"){
+		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    }*/
 		} else {
 		    response << "&nbsp;&nbsp;&nbsp;Other : " << last_sensor_data << " %<br/>" << std::endl;
 		}
@@ -654,7 +697,7 @@ struct display_controller : public Mongoose::WebController {
 	    	last_actuator_pk = actuator_name.getIntField(0);
 	    	last_actuator_name = actuator_name.fieldValue(1);
 		response << "<br/>******************************************************************************************" << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
-	    	if(last_actuator_name=="ir_button_1"){
+	    	if(last_actuator_name == "ir_button_1"){
 	    	    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
             	    std::string query_result(buffSQL);
@@ -691,7 +734,7 @@ int main(){
     //Run the wiringPi setup (as root)
     wiringPiSetup();
 
-    //Drop root privileges and run as pi:pi again
+    //Drop root privileges and run as pi again
     if(!revoke_root()){
        std::cout << "asgard: unable to revoke root privileges, exiting..." << std::endl;
        return 1;
