@@ -405,6 +405,7 @@ std::string header = R"=====(
 <center>
 <h1>Asgard - Home Automation System</h1>
 </center><br/>
+<div style="width: 720px; margin: 0 auto;">
 <h3>Current informations</h3>
 )=====";
 
@@ -623,32 +624,31 @@ struct display_controller : public Mongoose::WebController {
 		} else if(last_sensor_type == "HUMIDITY"){
 		    response << "&nbsp;&nbsp;&nbsp;Current air humidity : " << last_sensor_data << "%<br/>" << std::endl;
 		    if(last_sensor_name == "local"){
-		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><script>" <<
-"function addZero(i) {" <<
-  "if (i < 10) {" <<
-    "i = \"0\" + i;" <<
-  "}" <<
-  "return i;" <<
-"}" <<
-
-"var currentdate = new Date();" <<
-"var datetime = [];" <<
-"for (var i = 0; i < 12; ++i) {" <<
-  "datetime[i] = addZero(currentdate.getDate()) + \"-\" + addZero(currentdate.getMonth() + 1) + \"-\" + addZero(currentdate.getFullYear()) + \" \" + addZero(currentdate.getHours()-i) + \":\" + addZero(currentdate.getMinutes()) + \":\" + addZero(currentdate.getSeconds());" <<
-"}" <<
-
+		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
+		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><br/>" << 
+"<script>" <<
 "$(function() {" <<
-  "$('#local_humidity').highcharts({" <<
+  "$('#" << last_sensor_name << "_humidity').highcharts({" <<
     "title: {" <<
       "text: ''" <<
     "}," <<
     "subtitle: {" <<
-      "text: 'Humidity - last 12 hours from ' + datetime[0]," <<
+      "text: 'Humidity - last 12 hours from '," <<
       "x: 20" <<
     "}," <<
     "xAxis: {" <<
-      "categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]]," <<
+      "categories: [" << std::endl;
+		CppSQLite3Buffer buff;
+            	buff.format("select time from sensor_data where fk_sensor=%d", last_sensor_pk);
+            	std::string result(buff);
+	    	CppSQLite3Query sensor_time = db.execQuery(result.c_str());
+            	std::string last_sensor_time;
+            	while (!sensor_time.eof()){
+	   	    last_sensor_time = sensor_time.fieldValue(0);
+		    response << "\"" << last_sensor_time << "\"" << "," << std::endl;
+            	    sensor_time.nextRow();
+            	}
+response << "]," <<
       "labels: {" <<
        	"enabled: false" <<
       "}," <<
@@ -681,8 +681,8 @@ struct display_controller : public Mongoose::WebController {
   "});" <<
 "});" << "</script>" << std::endl;
 		    } /*else if(last_sensor_name == "rf_weather"){
-		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
-		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
+		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
 		    }*/
 		} else {
 		    response << "&nbsp;&nbsp;&nbsp;Other : " << last_sensor_data << " %<br/>" << std::endl;
@@ -719,7 +719,7 @@ struct display_controller : public Mongoose::WebController {
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-		    response << "<br/></html>" << std::endl;
+	response << "<br/><br/></div></div></body></html>" << std::endl;
     }
 
     //This will be called automatically
