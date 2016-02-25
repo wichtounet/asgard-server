@@ -113,7 +113,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
 	try {
 	    CppSQLite3Buffer buffSQL;
-	    buffSQL.format("insert into source(name,fk_pi) select \"%s\",1 where not exists(select 1 from source where name=\"%s\");", source.name.c_str(), source.name.c_str());
+	    buffSQL.format("insert into source(name,fk_pi) select \"%s\",1 where not exists(select 1 from source where name=\"%s\");",
+	    source.name.c_str(), source.name.c_str());
 	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
@@ -156,10 +157,14 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	    CppSQLite3Buffer buffSQL;
 	    if(sensor.name == "local"){
 	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"dht11\";");
-	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',%d where not exists(select 1 from sensor where type=\"%s\" and name='local');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
+	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'local',"
+		"%d where not exists(select 1 from sensor where type=\"%s\" and name='local');",
+		sensor.type.c_str(), sensor_pk, sensor.type.c_str());
 	    } else if(sensor.name == "rf_weather"){
 	    	int sensor_pk = db.execScalar("select pk_source from source where name=\"rf\";");
-	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',%d where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');", sensor.type.c_str(), sensor_pk, sensor.type.c_str());
+	    	buffSQL.format("insert into sensor(type,name,fk_source) select \"%s\",'rf_weather',"
+		"%d where not exists(select 1 from sensor where type=\"%s\" and name='rf_weather');",
+		sensor.type.c_str(), sensor_pk, sensor.type.c_str());
 	    }
 	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
@@ -207,10 +212,12 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	    CppSQLite3Buffer buffSQL;
 	    if(actuator.name == "rf_button_1"){
 	    	int actuator_pk = db.execScalar("select pk_source from source where name=\"rf\";");
-	    	buffSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',%d where not exists(select 1 from actuator where name='rf_button_1');", actuator_pk);
+	    	buffSQL.format("insert into actuator(name,fk_source) select 'rf_button_1',%d where not exists(select 1 from actuator where name='rf_button_1');",
+		actuator_pk);
 	    } else if(actuator.name=="ir_button_1"){
 	    	int actuator_pk = db.execScalar("select pk_source from source where name=\"ir\";");
-	    	buffSQL.format("insert into actuator(name,fk_source) select 'ir_button_1',%d where not exists(select 1 from actuator where name='ir_button_1');", actuator_pk);
+	    	buffSQL.format("insert into actuator(name,fk_source) select 'ir_button_1',%d where not exists(select 1 from actuator where name='ir_button_1');",
+		actuator_pk);
 	    }
 	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
@@ -347,11 +354,16 @@ void db_create(){
 
 void db_table(){
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
-    db.execDML("create table if not exists source(pk_source integer primary key autoincrement, name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
-    db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20), name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement, name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
-    db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20), time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
+    db.execDML("create table if not exists source(pk_source integer primary key autoincrement,"
+	       "name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
+    db.execDML("create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
+	       "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML("create table if not exists actuator(pk_actuator integer primary key autoincrement,"
+	       "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML("create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20),"
+	       "time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
+    db.execDML("create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20),"
+	       "time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
 }
 
 void cleanup(){
@@ -396,7 +408,7 @@ std::string header = R"=====(
 <head>
 <title>Asgard - Home Automation System</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta http-equiv="refresh" content="60">
+<meta http-equiv="refresh" content="30">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
@@ -409,199 +421,16 @@ std::string header = R"=====(
 <h3>Current informations</h3>
 )=====";
 
-std::string graph = R"=====(
-<script>
-function addZero(i) {
-  if (i < 10) {
-    i = "0" + i;
-  }
-  return i;
-}
-
-var currentdate = new Date();
-var datetime = [];
-for (var i = 0; i < 12; ++i) {
-  datetime[i] = addZero(currentdate.getDate()) + "-" + addZero(currentdate.getMonth() + 1) + "-" + addZero(currentdate.getFullYear()) + " " + addZero(currentdate.getHours()-i) + ":" + addZero(currentdate.getMinutes()) + ":" + addZero(currentdate.getSeconds());
-}
-
-$(function() {
-  $('#local_temperature').highcharts({
-    title: {
-      text: ''
-    },
-    subtitle: {
-      text: 'Temperature - last 12 hours from ' + datetime[0],
-      x: 20
-    },
-    xAxis: {
-      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
-      labels: {
-       	enabled: false
-      },
-      tickLength: 0
-    },
-    yAxis: {
-      title: {
-        text: 'Temperature (°C)'
-      }
-    },
-    plotOptions: {
-      line: {
-	 animation: false
-      }
-    },
-    exporting: {
-      enabled: false
-    },
-    credits: {
-      enabled: false
-    },
-    tooltip: {
-      valueSuffix: '°C'
-    },
-    series: [{
-      showInLegend: false,
-      name: 'local',
-      data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
-    }]
-  });
-});
-</script>
-)=====";
-  /*$('#local_humidity').highcharts({
-    title: {
-      text: ''
-    },
-    subtitle: {
-      text: 'Humidity - last 12 hours from ' + datetime[0],
-      x: 20
-    },
-    xAxis: {
-      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
-      labels: {
-       	enabled: false
-      },
-      tickLength: 0
-    },
-    yAxis: {
-      title: {
-        text: 'Humidity (%)'
-      }
-    },
-    plotOptions: {
-      line: {
-	 animation: false
-      }
-    },
-    exporting: {
-      enabled: false
-    },
-    credits: {
-      enabled: false
-    },
-    tooltip: {
-      valueSuffix: '%'
-    },
-    series: [{
-      showInLegend: false,
-      name: 'local',
-      data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]
-    }]
-  });
-  $('#rf_weather_temperature').highcharts({
-    title: {
-      text: ''
-    },
-    subtitle: {
-      text: 'Temperature - last 12 hours from ' + datetime[0],
-      x: 20
-    },
-    xAxis: {
-      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
-      labels: {
-       	enabled: false
-      },
-      tickLength: 0
-    },
-    yAxis: {
-      title: {
-        text: 'Temperature (°C)'
-      }
-    },
-    plotOptions: {
-      line: {
-	 animation: false
-      }
-    },
-    exporting: {
-      enabled: false
-    },
-    credits: {
-      enabled: false
-    },
-    tooltip: {
-      valueSuffix: '°C'
-    },
-    series: [{
-      showInLegend: false,
-      name: 'rf_weather',
-      data: [7.0, 6.9, 9.5, 14.5, 18.2, 21.5, 25.2, 26.5, 23.3, 18.3, 13.9, 9.6]
-    }]
-  });
-  $('#rf_weather_humidity').highcharts({
-    title: {
-      text: ''
-    },
-    subtitle: {
-      text: 'Humidity - last 12 hours from ' + datetime[0],
-      x: 20
-    },
-    xAxis: {
-      categories: [datetime[11], datetime[10], datetime[9], datetime[8], datetime[7], datetime[6], datetime[5], datetime[4], datetime[3], datetime[2], datetime[1], datetime[0]],
-      labels: {
-       	enabled: false
-      },
-      tickLength: 0
-    },
-    yAxis: {
-      title: {
-        text: 'Humidity (%)'
-      }
-    },
-    plotOptions: {
-      line: {
-	 animation: false
-      }
-    },
-    exporting: {
-      enabled: false
-    },
-    credits: {
-      enabled: false
-    },
-    tooltip: {
-      valueSuffix: '%'
-    },
-    series: [{
-      showInLegend: false,
-      name: 'rf_weather',
-      data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]
-    }]
-  });
-});
-</script>
-)=====";*/
-
 struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
 	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
-        response << graph << std::endl;
 
 	try {
-	    CppSQLite3Query sensor_name = db.execQuery("select pk_sensor,name,type from sensor order by name;");
+	    CppSQLite3Query sensor_name = db.execQuery("select pk_sensor, name, type from sensor order by name;");
+	    int interval = 12;
             int last_sensor_pk;
             std::string last_sensor_name;
             std::string last_sensor_type;
@@ -609,37 +438,18 @@ struct display_controller : public Mongoose::WebController {
 	    	last_sensor_pk = sensor_name.getIntField(0);
 	    	last_sensor_name = sensor_name.fieldValue(1);
 	    	last_sensor_type = sensor_name.fieldValue(2);
-		CppSQLite3Buffer buffSQL;
-            	buffSQL.format("select data from sensor_data where fk_sensor=%d", last_sensor_pk);
-            	std::string query_result(buffSQL);
-	    	CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
-            	std::string last_sensor_data;
-            	while (!sensor_data.eof()){
-	   	    last_sensor_data = sensor_data.fieldValue(0);
-            	    sensor_data.nextRow();
-            	}
-		if(last_sensor_type == "TEMPERATURE"){
-		    response << "<br/>******************************************************************************************" << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
-		    response << "&nbsp;&nbsp;&nbsp;Current temperature : " << last_sensor_data << "°C<br/>" << std::endl;
-		} else if(last_sensor_type == "HUMIDITY"){
-		    response << "&nbsp;&nbsp;&nbsp;Current air humidity : " << last_sensor_data << "%<br/>" << std::endl;
-		    if(last_sensor_name == "local"){
-		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
-		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><br/>" << 
-"<script>" <<
+		std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
+		last_sensor_type[0] = toupper(last_sensor_type[0]);
+response << "<script>" <<
 "$(function() {" <<
-  "$('#" << last_sensor_name << "_humidity').highcharts({" <<
+  "$('#" << last_sensor_name << last_sensor_type << "').highcharts({" <<
     "title: {" <<
       "text: ''" <<
-    "}," <<
-    "subtitle: {" <<
-      "text: 'Humidity - last 12 hours from '," <<
-      "x: 20" <<
     "}," <<
     "xAxis: {" <<
       "categories: [" << std::endl;
 		CppSQLite3Buffer buff;
-            	buff.format("select time from sensor_data where fk_sensor=%d", last_sensor_pk);
+            	buff.format("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time", interval, last_sensor_pk);
             	std::string result(buff);
 	    	CppSQLite3Query sensor_time = db.execQuery(result.c_str());
             	std::string last_sensor_time;
@@ -654,10 +464,19 @@ response << "]," <<
       "}," <<
       "tickLength: 0" <<
     "}," <<
+    "subtitle: {" <<
+      "text: '" << last_sensor_type << " - last " << interval << " hours from " << last_sensor_time << "'," <<
+      "x: 20" <<
+    "}," <<
     "yAxis: {" <<
       "title: {" <<
-        "text: 'Humidity (%)'" <<
-      "}" <<
+        "text: '" << last_sensor_type;
+		if(last_sensor_type == "Temperature"){
+		    response << " (°C)'" << std::endl;
+		} else if(last_sensor_type == "Humidity"){
+		    response << " (%)'" << std::endl;
+		}
+response << "}" <<
     "}," <<
     "plotOptions: {" <<
       "line: {" <<
@@ -676,27 +495,43 @@ response << "]," <<
     "series: [{" <<
       "showInLegend: false," <<
       "name: 'local'," <<
-      "data: [22.2, 26.6, 24.3, 18.7, 13.0, 8.0, 5.2, 5.9, 9.9, 15.9, 21.4, 27.5]" <<
+      "data: [" << std::endl;
+		CppSQLite3Buffer buffSQL;
+            	buffSQL.format("select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time", interval,last_sensor_pk);
+            	std::string query_result(buffSQL);
+	    	CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
+            	std::string last_sensor_data;
+            	while (!sensor_data.eof()){
+	   	    last_sensor_data = sensor_data.fieldValue(0);
+		    response << last_sensor_data << "," << std::endl;
+            	    sensor_data.nextRow();
+            	}
+response << "]" <<
     "}]" <<
   "});" <<
 "});" << "</script>" << std::endl;
-		    } /*else if(last_sensor_name == "rf_weather"){
-		    	response << "<br/><div id=\"" << last_sensor_name << "_temperature\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
-		    	response << "<br/><div id=\"" << last_sensor_name << "_humidity\" style=\"width: 720px; height: 280px\"></div><br/>" << std::endl;
-		    }*/
+		if(last_sensor_type == "Temperature"){
+		    response << "<br/>******************************************************************************************" << std::endl;
+		    response << "<h3>Driver name : " << last_sensor_name << "</h3>" << std::endl;
+		    response << "&nbsp;&nbsp;&nbsp;Current temperature : " << last_sensor_data << "°C<br/>" << std::endl;
+		} else if(last_sensor_type == "Humidity"){
+		    response << "&nbsp;&nbsp;&nbsp;Current air humidity : " << last_sensor_data << "%<br/>" << std::endl;
+		    response << "<br/><div id=\"" << last_sensor_name << "Temperature\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+		    response << "<br/><div id=\"" << last_sensor_name << "Humidity\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
 		} else {
 		    response << "&nbsp;&nbsp;&nbsp;Other : " << last_sensor_data << " %<br/>" << std::endl;
 		}
             	sensor_name.nextRow();
             }
 
-	    CppSQLite3Query actuator_name = db.execQuery("select pk_actuator,name from actuator order by name;");
+	    CppSQLite3Query actuator_name = db.execQuery("select pk_actuator, name from actuator order by name;");
 	    int last_actuator_pk;
 	    std::string last_actuator_name;
             while (!actuator_name.eof()){
 	    	last_actuator_pk = actuator_name.getIntField(0);
 	    	last_actuator_name = actuator_name.fieldValue(1);
-		response << "<br/>******************************************************************************************" << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
+		response << "<br/>******************************************************************************************" << std::endl;
+		response << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
 	    	if(last_actuator_name == "ir_button_1"){
 	    	    CppSQLite3Buffer buffSQL;
             	    buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
@@ -719,7 +554,7 @@ response << "]," <<
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-	response << "<br/><br/></div></div></body></html>" << std::endl;
+	response << "<br/><br/></div></body></html>" << std::endl;
     }
 
     //This will be called automatically
