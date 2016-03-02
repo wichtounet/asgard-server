@@ -383,13 +383,21 @@ std::string header = R"=====(
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
+<style type="text/css">
+div{width: 720px; margin: 0 auto; margin-bottom: 10px;}
+h1{line-height: 55px;}
+.structure{border-bottom: 2px solid gray;}
+.content{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+.title{background-color: lightgray; opacity: 0.9; width: 700px; height: 55px; padding-left: 20px; 
+border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
+</style>
 </head>
 <body>
-<center>
+<div class="structure"><center>
 <h1>Asgard - Home Automation System</h1>
-</center><br/>
-<div style="width: 720px; margin: 0 auto;">
-<h3>Current informations</h3>
+</center></div>
+<div class="structure">
+<div class="content"><div class="title"><h3>Current informations</h3></div>
 )=====";
 
 struct display_controller : public Mongoose::WebController {
@@ -406,7 +414,7 @@ struct display_controller : public Mongoose::WebController {
 	    std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
 	    last_sensor_type[0] = toupper(last_sensor_type[0]);
 	    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << 
-	    "').highcharts({chart: {marginBottom: 70}, title: {text: ''}, xAxis:{categories: [" << std::endl;
+	    "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [" << std::endl;
 	    CppSQLite3Buffer buff;
             buff.format("select time from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time", interval, last_sensor_pk);
             std::string result(buff);
@@ -418,7 +426,7 @@ struct display_controller : public Mongoose::WebController {
             	sensor_time.nextRow();
             }
 	    response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_type << " - last " <<
-	    interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', x: 20, y: -10}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
+	    interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', x: 20, y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
 	    if(last_sensor_type == "Temperature"){
 		response << " (°C)'" << std::endl;
 	    } else if(last_sensor_type == "Humidity"){
@@ -451,16 +459,15 @@ struct display_controller : public Mongoose::WebController {
             }
 	    response << "]}]});});" << "</script>" << std::endl;
 	    if(!last_sensor_data.empty()){
-	    	response << "<br/>******************************************************************************************" << std::endl;
-	    	response << "<h3>Driver name : " << last_sensor_name << " (" << last_sensor_type << ")</h3>" << std::endl;
+	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
 	    	if(last_sensor_type == "Temperature"){
-		    response << "&nbsp;&nbsp;&nbsp;Current Temperature : " << data_round << "°C<br/>" << std::endl;
+		    response << "<ul><li>Current Temperature : " << data_round << "°C</li></ul>" << std::endl;
 	    	} else if(last_sensor_type == "Humidity"){
-		    response << "&nbsp;&nbsp;&nbsp;Current Air Humidity : " << data_round << "%<br/>" << std::endl;
+		    response << "<ul><li>Current Air Humidity : " << data_round << "%</li></ul>" << std::endl;
 	    	} else {
-		    response << "&nbsp;&nbsp;&nbsp;Current Value : " << data_round << "<br/>" << std::endl;
+		    response << "<ul><li>Current Value : " << data_round << "</li></ul>" << std::endl;
 	    	}
-	    	response << "<br/><div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"width: 720px; height: 280px\"></div>" << std::endl;
+	    	response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"height: 280px\"></div></div>" << std::endl;
 	    }
             sensor_name.nextRow();
         }
@@ -483,13 +490,12 @@ struct display_controller : public Mongoose::WebController {
             	actuator_data.nextRow();
             }
 	    if(!last_actuator_data.empty()){
-		response << "<br/>******************************************************************************************" << std::endl;
-	    	response << "<h3>Driver name : " << last_actuator_name << "</h3>" << std::endl;
-	    	response << "&nbsp;&nbsp;&nbsp;Last Input : " << last_actuator_data << "<br/>" << std::endl;
+	    	response << "<div class=\"content\"><div class=\"title\"><h3>Actuator name : " << last_actuator_name << "</h3></div>" << std::endl;
+	    	response << "<ul><li>Last Input : " << last_actuator_data << std::endl;
 	    	CppSQLite3Buffer bufSQL;
             	bufSQL.format("select count(data) from actuator_data where fk_actuator=%d", last_actuator_pk);
 	    	int nbClicks = db.execScalar(bufSQL);
-	    	response << "&nbsp;&nbsp;&nbsp;Number of Inputs : " << nbClicks << "<br/>" << std::endl;	    
+	    	response << "</li><li>Number of Inputs : " << nbClicks << "</li></ul></div>" << std::endl;	    
 	    }
             actuator_name.nextRow();
         }
@@ -497,16 +503,16 @@ struct display_controller : public Mongoose::WebController {
 
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Drivers running : " << nb_drivers << "<br/>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Sensors active : " << nb_sensors << "<br/>" << std::endl;
-	response << "&nbsp;&nbsp;&nbsp;Actuators active : " << nb_actuators << "<br/>" << std::endl;
+	response << "<ul><li>Drivers running : " << nb_drivers << std::endl;
+	response << "</li><li>Sensors active : " << nb_sensors << std::endl;
+	response << "</li><li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
 	try {
 	    display_sensors(response);
 	    display_actuators(response);
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-	response << "<br/><br/></div></body></html>" << std::endl;
+	response << "<br/></div></body></html>" << std::endl;
     }
 
     //This will be called automatically
