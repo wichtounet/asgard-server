@@ -22,7 +22,6 @@
 #include<unistd.h>
 #include<signal.h>
 
-#include <cmath>
 #include <ctime>
 #include <wiringPi.h>
 
@@ -388,8 +387,9 @@ div{width: 720px; margin: 0 auto; margin-bottom: 10px;}
 h1{line-height: 55px;}
 .structure{border-bottom: 2px solid gray;}
 .content{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
-.title{background-color: lightgray; opacity: 0.9; width: 700px; height: 55px; padding-left: 20px; 
+.title{background-color: lightgray; opacity: 0.8; width: 700px; height: 55px; padding-left: 20px; 
 border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
+#footer{text-align: right; margin-top: 30px; margin-bottom: 30px; font-size: 14px}
 </style>
 </head>
 <body>
@@ -426,7 +426,7 @@ struct display_controller : public Mongoose::WebController {
             	sensor_time.nextRow();
             }
 	    response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_type << " - last " <<
-	    interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', x: 20, y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
+	    interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
 	    if(last_sensor_type == "Temperature"){
 		response << " (°C)'" << std::endl;
 	    } else if(last_sensor_type == "Humidity"){
@@ -448,26 +448,22 @@ struct display_controller : public Mongoose::WebController {
             std::string query_result(buffSQL);
 	    CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
             std::string last_sensor_data;
-	    std::string::size_type sz;
-	    float data_round;
             while (!sensor_data.eof()){
 	   	last_sensor_data = sensor_data.fieldValue(0);
-		data_round = std::stof(last_sensor_data, &sz);
-		data_round = std::floor(data_round*10)/10;
-		response << data_round << "," << std::endl;
+		response << last_sensor_data << "," << std::endl;
             	sensor_data.nextRow();
             }
 	    response << "]}]});});" << "</script>" << std::endl;
 	    if(!last_sensor_data.empty()){
 	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
 	    	if(last_sensor_type == "Temperature"){
-		    response << "<ul><li>Current Temperature : " << data_round << "°C</li></ul>" << std::endl;
+		    response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
 	    	} else if(last_sensor_type == "Humidity"){
-		    response << "<ul><li>Current Air Humidity : " << data_round << "%</li></ul>" << std::endl;
+		    response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
 	    	} else {
-		    response << "<ul><li>Current Value : " << data_round << "</li></ul>" << std::endl;
+		    response << "<ul><li>Current Value : " << last_sensor_data << "</li></ul>" << std::endl;
 	    	}
-	    	response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"height: 280px\"></div></div>" << std::endl;
+	    	response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"height: 240px\"></div></div>" << std::endl;
 	    }
             sensor_name.nextRow();
         }
@@ -512,7 +508,7 @@ struct display_controller : public Mongoose::WebController {
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-	response << "<br/></div></body></html>" << std::endl;
+	response << "<br/></div><div id=\"footer\">© 2015 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
     }
 
     //This will be called automatically
