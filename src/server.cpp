@@ -113,13 +113,9 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	    CppSQLite3Buffer buffSQL;
 	    buffSQL.format("insert into source(name,fk_pi) select \"%s\", 1 where not exists(select 1 from source where name=\"%s\");",
 	    source.name.c_str(), source.name.c_str());
-	    if(db.execDML(buffSQL)){
-		source.id_sql = db.lastRowId();
-	    } else {
-		CppSQLite3Buffer bufSQL;
-	    	bufSQL.format("select pk_source from source where name=\"%s\";", source.name.c_str());
-		source.id_sql = db.execScalar(bufSQL);
-	    }
+	    db.execDML(buffSQL);
+	    buffSQL.format("select pk_source from source where name=\"%s\";", source.name.c_str());
+	    source.id_sql = db.execScalar(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -240,9 +236,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	    CppSQLite3Buffer buffSQL;
 	    buffSQL.format("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
 	    int sensor_pk = db.execScalar(buffSQL);
-	    CppSQLite3Buffer bufSQL;
-	    bufSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
-	    db.execDML(bufSQL);
+	    buffSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
+	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -264,9 +259,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	    CppSQLite3Buffer buffSQL;
 	    buffSQL.format("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
 	    int actuator_pk = db.execScalar(buffSQL);
-	    CppSQLite3Buffer bufSQL;
-	    bufSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
-	    db.execDML(bufSQL);
+	    buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
+	    db.execDML(buffSQL);
 	} catch (CppSQLite3Exception& e){
 	    std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
 	}
@@ -407,63 +401,70 @@ struct display_controller : public Mongoose::WebController {
         int last_sensor_pk;
         std::string last_sensor_name;
         std::string last_sensor_type;
+        std::string last_sensor_data;
         while (!sensor_name.eof()){
 	    last_sensor_pk = sensor_name.getIntField(0);
 	    last_sensor_name = sensor_name.fieldValue(1);
 	    last_sensor_type = sensor_name.fieldValue(2);
 	    std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
 	    last_sensor_type[0] = toupper(last_sensor_type[0]);
-	    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << 
-	    "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [" << std::endl;
-	    CppSQLite3Buffer buff;
-            buff.format("select time from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time", interval, last_sensor_pk);
-            std::string result(buff);
-	    CppSQLite3Query sensor_time = db.execQuery(result.c_str());
-            std::string last_sensor_time;
-            while (!sensor_time.eof()){
-	   	last_sensor_time = sensor_time.fieldValue(0);
-		response << "\"" << last_sensor_time << "\"" << "," << std::endl;
-            	sensor_time.nextRow();
-            }
-	    response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_type << " - last " <<
-	    interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
-	    if(last_sensor_type == "Temperature"){
-		response << " (°C)'" << std::endl;
-	    } else if(last_sensor_type == "Humidity"){
-		response << " (%)'" << std::endl;
-	    } else {
-		response << " '" << std::endl;
-	    }
-	    response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
-	    if(last_sensor_type == "Temperature"){
-		response << "°C'" << std::endl;
-	    } else if(last_sensor_type == "Humidity"){
-		response << "%'" << std::endl;
-	    } else {
-		response << "'" << std::endl;
-	    }
-	    response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: [" << std::endl;
-	    CppSQLite3Buffer buffSQL;
-            buffSQL.format("select data from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time", interval, last_sensor_pk);
-            std::string query_result(buffSQL);
-	    CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
-            std::string last_sensor_data;
-            while (!sensor_data.eof()){
-	   	last_sensor_data = sensor_data.fieldValue(0);
-		response << last_sensor_data << "," << std::endl;
-            	sensor_data.nextRow();
-            }
-	    response << "]}]});});" << "</script>" << std::endl;
-	    if(!last_sensor_data.empty()){
-	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    if(last_sensor_type == "Temperature" || last_sensor_type == "Humidity"){
+	    	response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << 
+	    	"').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [";
+	    	CppSQLite3Buffer buffSQL;
+            	buffSQL.format("select time from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval, last_sensor_pk);
+            	std::string result(buffSQL);
+	    	CppSQLite3Query sensor_time = db.execQuery(result.c_str());
+            	std::string last_sensor_time;
+            	while (!sensor_time.eof()){
+	   	    last_sensor_time = sensor_time.fieldValue(0);
+		    response << "\"" << last_sensor_time << "\"" << ",";
+            	    sensor_time.nextRow();
+            	}
+	    	response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " <<
+	    	interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
 	    	if(last_sensor_type == "Temperature"){
-		    response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+		    response << " (°C)'";
 	    	} else if(last_sensor_type == "Humidity"){
-		    response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
-	    	} else {
-		    response << "<ul><li>Current Value : " << last_sensor_data << "</li></ul>" << std::endl;
+		    response << " (%)'";
 	    	}
-	    	response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"height: 240px\"></div></div>" << std::endl;
+	    	response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
+	    	if(last_sensor_type == "Temperature"){
+		    response << "°C'";
+	    	} else if(last_sensor_type == "Humidity"){
+		    response << "%'";
+	    	}
+	    	response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: ["; 
+	    	CppSQLite3Buffer bufSQL;
+            	bufSQL.format("select data from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval, last_sensor_pk);
+            	std::string query_result(bufSQL);
+	    	CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
+            	while (!sensor_data.eof()){
+	   	    last_sensor_data = sensor_data.fieldValue(0);
+		    response << last_sensor_data << ",";
+            	    sensor_data.nextRow();
+            	}
+	    	response << "]}]});});" << "</script>" << std::endl;
+		if(!last_sensor_data.empty()){
+	    	    response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    	    if(last_sensor_type == "Temperature"){
+		    	response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+	    	    } else if(last_sensor_type == "Humidity"){
+		    	response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
+	    	    } 
+	    	    response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"width: 700px; height: 240px\"></div></div>" << std::endl;
+	    	}
+	    } else {
+	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    	CppSQLite3Buffer bufSQL;
+            	bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
+            	std::string query_result(bufSQL);
+	    	CppSQLite3Query sensor_value = db.execQuery(query_result.c_str());
+		std::string last_sensor_value = sensor_value.fieldValue(0);
+		response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
+            	bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
+	    	int nbValue = db.execScalar(bufSQL);
+		response << "<li>Number of Values : " << nbValue << "</li></ul></div>" << std::endl;
 	    }
             sensor_name.nextRow();
         }
@@ -477,21 +478,16 @@ struct display_controller : public Mongoose::WebController {
 	    last_actuator_pk = actuator_name.getIntField(0);
 	    last_actuator_name = actuator_name.fieldValue(1);
 	    CppSQLite3Buffer buffSQL;
-            buffSQL.format("select data from actuator_data where fk_actuator=%d", last_actuator_pk);
+            buffSQL.format("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", last_actuator_pk);
             std::string query_result(buffSQL);
 	    CppSQLite3Query actuator_data = db.execQuery(query_result.c_str());
-            std::string last_actuator_data;
-            while (!actuator_data.eof()){
-	   	last_actuator_data = actuator_data.fieldValue(0);
-            	actuator_data.nextRow();
-            }
+            std::string last_actuator_data = actuator_data.fieldValue(0);
 	    if(!last_actuator_data.empty()){
 	    	response << "<div class=\"content\"><div class=\"title\"><h3>Actuator name : " << last_actuator_name << "</h3></div>" << std::endl;
-	    	response << "<ul><li>Last Input : " << last_actuator_data << std::endl;
-	    	CppSQLite3Buffer bufSQL;
-            	bufSQL.format("select count(data) from actuator_data where fk_actuator=%d", last_actuator_pk);
-	    	int nbClicks = db.execScalar(bufSQL);
-	    	response << "</li><li>Number of Inputs : " << nbClicks << "</li></ul></div>" << std::endl;	    
+	    	response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
+            	buffSQL.format("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
+	    	int nbClicks = db.execScalar(buffSQL);
+	    	response << "<li>Number of Inputs : " << nbClicks << "</li></ul></div>" << std::endl;	    
 	    }
             actuator_name.nextRow();
         }
@@ -499,21 +495,28 @@ struct display_controller : public Mongoose::WebController {
 
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
-	response << "<ul><li>Drivers running : " << nb_drivers << std::endl;
-	response << "</li><li>Sensors active : " << nb_sensors << std::endl;
-	response << "</li><li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
+	response << "<ul><li>Drivers running : " << nb_drivers << "</li>" << std::endl;
+	response << "<li>Sensors active : " << nb_sensors << "</li>" << std::endl;
+	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
 	try {
 	    display_sensors(response);
 	    display_actuators(response);
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-	response << "<br/></div><div id=\"footer\">© 2015 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
+	response << "<br/></div><div id=\"footer\">© 2015-2016 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
+    }
+
+    void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response){
+	//TO IMPLEMENT LED ON
+        display(request, response);
     }
 
     //This will be called automatically
     void setup(){
         addRoute<display_controller>("GET", "/display", &display_controller::display);
+        addRoute<display_controller>("GET", "/LED_ON", &display_controller::led_on);
+	//TO IMPLEMENT LED OFF
     }
 };
 
