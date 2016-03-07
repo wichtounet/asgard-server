@@ -370,28 +370,31 @@ std::string header = R"=====(
 <!DOCTYPE html>
 <html>
 <head>
-<title>Asgard - Home Automation System</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta http-equiv="refresh" content="30">
+<title>Asgard - Home Automation System</title>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <style type="text/css">
-div{width: 720px; margin: 0 auto; margin-bottom: 10px;}
-h1{line-height: 55px;}
-.structure{border-bottom: 2px solid gray;}
-.content{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+.content{width: 720px; margin-top: 20px; border: 1px solid black; border-radius: 10px;}
 .title{background-color: lightgray; opacity: 0.8; width: 700px; height: 55px; padding-left: 20px; 
 border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
-#footer{text-align: right; margin-top: 30px; margin-bottom: 30px; font-size: 14px}
+#myTitle{margin: 0 auto; background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
+border-radius: 10px 10px 0px 0px; border-left: 1px solid black; border-right: 1px solid black; border-top: 1px solid black;}
+#container{width: 1000px; padding-left: 10px; padding-right: 10px; padding-bottom: 10px; border: 1px solid black; 
+border-radius: 0px 0px 10px 10px; overflow: hidden; margin: 0 auto;}
+#menu{float: left; width: 260px; height: 780px; margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+#information{float: right;}
+#footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
 </head>
 <body>
-<div class="structure"><center>
-<h1>Asgard - Home Automation System</h1>
-</center></div>
-<div class="structure">
-<div class="content"><div class="title"><h3>Current informations</h3></div>
+<div id="myTitle"><center>
+<h2>Asgard - Home Automation System</h2>
+</center></div><div id="container">
+<div id="menu"><div class="title" style="width: 240px;"><h3>Current informations</h3></div>
 )=====";
 
 struct display_controller : public Mongoose::WebController {
@@ -455,16 +458,21 @@ struct display_controller : public Mongoose::WebController {
 	    	    response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"width: 700px; height: 240px\"></div></div>" << std::endl;
 	    	}
 	    } else {
-	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
 	    	CppSQLite3Buffer bufSQL;
             	bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
             	std::string query_result(bufSQL);
 	    	CppSQLite3Query sensor_value = db.execQuery(query_result.c_str());
-		std::string last_sensor_value = sensor_value.fieldValue(0);
-		response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
-            	bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
-	    	int nbValue = db.execScalar(bufSQL);
-		response << "<li>Number of Values : " << nbValue << "</li></ul></div>" << std::endl;
+		std::string last_sensor_value;
+		while (!sensor_value.eof()){
+		    last_sensor_value = sensor_value.fieldValue(0);
+		}
+		if(!last_sensor_value.empty()){
+	    	    response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+		    response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
+            	    bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
+	    	    int nbValue = db.execScalar(bufSQL);
+		    response << "<li>Number of Values : " << nbValue << "</li></ul></div>" << std::endl;
+		}
 	    }
             sensor_name.nextRow();
         }
@@ -497,14 +505,14 @@ struct display_controller : public Mongoose::WebController {
         response << header << std::endl;
 	response << "<ul><li>Drivers running : " << nb_drivers << "</li>" << std::endl;
 	response << "<li>Sensors active : " << nb_sensors << "</li>" << std::endl;
-	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
+	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div><div id=\"information\">" << std::endl;
 	try {
 	    display_sensors(response);
 	    display_actuators(response);
 	} catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-	response << "<br/></div><div id=\"footer\">© 2015-2016 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
+	response << "</div></div><div id=\"footer\">© 2015-2016 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response){
