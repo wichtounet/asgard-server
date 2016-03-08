@@ -384,18 +384,17 @@ div{margin: 0 auto;}
 border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
 .myTabs{float: right !important; font-size: 14px;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
-border-radius: 10px 10px 0px 0px; border-left: 1px solid black; border-right: 1px solid black; border-top: 1px solid black;}
-#container{width: 1000px; padding-left: 10px; padding-right: 10px; padding-bottom: 10px; 
-border: 1px solid black; border-radius: 0px 0px 10px 10px; overflow: hidden;}
+border-radius: 10px 10px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
+#container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 10px 10px; overflow: hidden;}
 #sidebar{float: left; width: 260px; margin-top: 20px;}
-#menu{height: 480px; border: 1px solid black; border-radius: 10px;}
-#tabs{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+#menu{width: 260px; height: 480px; border: 1px solid black; border-radius: 10px;}
+#led{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
 #main{float: right;}
 #footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
 <script>
     $(function(){
-	$("#tabs").tabs();
+	$(".tabs").tabs();
     });
 </script>
 </head>
@@ -409,7 +408,7 @@ border: 1px solid black; border-radius: 0px 0px 10px 10px; overflow: hidden;}
 struct display_controller : public Mongoose::WebController {
     void display_sensors(Mongoose::StreamResponse& response){
 	CppSQLite3Query sensor_name = db.execQuery("select pk_sensor, name, type from sensor order by name;");
-	int interval = 7;
+	int interval[3] = {7, 14, 21};
         int last_sensor_pk;
         std::string last_sensor_name;
         std::string last_sensor_type;
@@ -420,68 +419,72 @@ struct display_controller : public Mongoose::WebController {
 	    last_sensor_type = sensor_name.fieldValue(2);
 	    std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
 	    last_sensor_type[0] = toupper(last_sensor_type[0]);
-	    if(last_sensor_type == "Temperature" || last_sensor_type == "Humidity"){
-	    	response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << 
-	    	"').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [";
-	    	CppSQLite3Buffer buffSQL;
-            	buffSQL.format("select time from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval, last_sensor_pk);
-            	std::string result(buffSQL);
-	    	CppSQLite3Query sensor_time = db.execQuery(result.c_str());
-            	std::string last_sensor_time;
-            	while (!sensor_time.eof()){
-	   	    last_sensor_time = sensor_time.fieldValue(0);
-		    response << "\"" << last_sensor_time << "\"" << ",";
-            	    sensor_time.nextRow();
-            	}
-	    	response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " <<
-	    	interval << " days from " << last_sensor_time << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
-	    	if(last_sensor_type == "Temperature"){
-		    response << " (°C)'";
-	    	} else if(last_sensor_type == "Humidity"){
-		    response << " (%)'";
-	    	}
-	    	response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
-	    	if(last_sensor_type == "Temperature"){
-		    response << "°C'";
-	    	} else if(last_sensor_type == "Humidity"){
-		    response << "%'";
-	    	}
-	    	response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: ["; 
-	    	CppSQLite3Buffer bufSQL;
-            	bufSQL.format("select data from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval, last_sensor_pk);
-            	std::string query_result(bufSQL);
-	    	CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
-            	while (!sensor_data.eof()){
-	   	    last_sensor_data = sensor_data.fieldValue(0);
-		    response << last_sensor_data << ",";
-            	    sensor_data.nextRow();
-            	}
-	    	response << "]}]});});" << "</script>" << std::endl;
-		if(!last_sensor_data.empty()){
-	    	    response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    for(int i=0; i<3; ++i){
+	    	if(last_sensor_type == "Temperature" || last_sensor_type == "Humidity"){
+	    	    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i <<
+	    	    "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [";
+	    	    CppSQLite3Buffer buffSQL;
+            	    buffSQL.format("select time from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
+            	    std::string result(buffSQL);
+	    	    CppSQLite3Query sensor_time = db.execQuery(result.c_str());
+            	    std::string last_sensor_time;
+            	    while (!sensor_time.eof()){
+	   	    	last_sensor_time = sensor_time.fieldValue(0);
+		    	response << "\"" << last_sensor_time << "\"" << ",";
+            	    	sensor_time.nextRow();
+            	    }
+	    	    response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " <<
+	    	    interval[i] << " days from " << last_sensor_time << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
 	    	    if(last_sensor_type == "Temperature"){
-		    	response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+		    	response << " (°C)'";
 	    	    } else if(last_sensor_type == "Humidity"){
-		    	response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
-	    	    } 
-	    	    response << "<div id=\"" << last_sensor_name << last_sensor_type << "\" style=\"width: 700px; height: 240px\"></div></div>" << std::endl;
+		    	response << " (%)'";
+	    	    }
+	    	    response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
+	    	    if(last_sensor_type == "Temperature"){
+		    	response << "°C'";
+	    	    } else if(last_sensor_type == "Humidity"){
+		    	response << "%'";
+	    	    }
+	    	    response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: ["; 
+	    	    CppSQLite3Buffer bufSQL;
+            	    bufSQL.format("select data from sensor_data where time > datetime('now', '-%d days') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
+            	    std::string query_result(bufSQL);
+	    	    CppSQLite3Query sensor_data = db.execQuery(query_result.c_str());
+            	    while (!sensor_data.eof()){
+	   	    	last_sensor_data = sensor_data.fieldValue(0);
+		    	response << last_sensor_data << ",";
+            	    	sensor_data.nextRow();
+            	    }
+	    	    response << "]}]});});" << "</script>" << std::endl;
+		    if(!last_sensor_data.empty()){
+	    	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << 
+			last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    	    	if(last_sensor_type == "Temperature"){
+		    	    response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+	    	    	} else if(last_sensor_type == "Humidity"){
+		    	    response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
+	    	    	} 
+	    	    	response << "<div id=\"" << last_sensor_name << last_sensor_type << i << "\" style=\"width: 700px; height: 240px\"></div></div>" << std::endl;
+	    	    }
+	    	} else {
+	    	    CppSQLite3Buffer bufSQL;
+            	    bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
+            	    std::string query_result(bufSQL);
+	    	    CppSQLite3Query sensor_value = db.execQuery(query_result.c_str());
+		    std::string last_sensor_value;
+		    while (!sensor_value.eof()){
+		    	last_sensor_value = sensor_value.fieldValue(0);
+		    }
+		    if(!last_sensor_value.empty()){
+	    	    	response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << 
+			last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+		    	response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
+            	    	bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
+	    	    	int nbValue = db.execScalar(bufSQL);
+		    	response << "<li>Number of Values : " << nbValue << "</li></ul></div>" << std::endl;
+		    }
 	    	}
-	    } else {
-	    	CppSQLite3Buffer bufSQL;
-            	bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
-            	std::string query_result(bufSQL);
-	    	CppSQLite3Query sensor_value = db.execQuery(query_result.c_str());
-		std::string last_sensor_value;
-		while (!sensor_value.eof()){
-		    last_sensor_value = sensor_value.fieldValue(0);
-		}
-		if(!last_sensor_value.empty()){
-	    	    response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
-		    response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
-            	    bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
-	    	    int nbValue = db.execScalar(bufSQL);
-		    response << "<li>Number of Values : " << nbValue << "</li></ul></div>" << std::endl;
-		}
 	    }
             sensor_name.nextRow();
         }
@@ -515,21 +518,7 @@ struct display_controller : public Mongoose::WebController {
 	response << "<ul><li>Drivers running : " << nb_drivers << "</li>" << std::endl;
 	response << "<li>Sensors active : " << nb_sensors << "</li>" << std::endl;
 	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
-response << "<div id=\"tabs\">" << std::endl;
-response << "<ul>" << std::endl;
-response << "<li class=\"myTabs\"><a href=\"#tabs-1\">Tab 1</a></li>" << std::endl;
-response << "<li class=\"myTabs\"><a href=\"#tabs-2\">Tab 2</a></li>" << std::endl;
-response << "<li class=\"myTabs\"><a href=\"#tabs-3\">Tab 3</a></li>" << std::endl;
-response << "</ul>" << std::endl;
-response << "<div id=\"tabs-1\">" << std::endl;
-response << "<p>Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit... </p>" << std::endl;
-response << "</div>" << std::endl;
-response << "<div id=\"tabs-2\">" << std::endl;
-response << "<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. </p>" << std::endl;
-response << "</div>" << std::endl;
-response << "<div id=\"tabs-3\">" << std::endl;
-response << "<p>ed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.  </p>" << std::endl;
-response << "</div></div></div>" << std::endl;
+response << "<div id=\"led\" style=\"width: 260px; height: 260px;\"><div class=\"title\" style=\"width: 240px;\"><h3>Onboard LED</h3></div></div></div>" << std::endl;
 	response << "<div id=\"main\">" << std::endl;
 	try {
 	    display_sensors(response);
