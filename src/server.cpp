@@ -378,23 +378,32 @@ std::string header = R"=====(
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <style type="text/css">
+div{margin: 0 auto;}
 .content{width: 720px; margin-top: 20px; border: 1px solid black; border-radius: 10px;}
 .title{background-color: lightgray; opacity: 0.8; width: 700px; height: 55px; padding-left: 20px; 
 border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
-#myTitle{margin: 0 auto; background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
+.myTabs{float: right !important; font-size: 14px;}
+#header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
 border-radius: 10px 10px 0px 0px; border-left: 1px solid black; border-right: 1px solid black; border-top: 1px solid black;}
-#container{width: 1000px; padding-left: 10px; padding-right: 10px; padding-bottom: 10px; border: 1px solid black; 
-border-radius: 0px 0px 10px 10px; overflow: hidden; margin: 0 auto;}
-#menu{float: left; width: 260px; height: 780px; margin-top: 20px; border: 1px solid black; border-radius: 10px;}
-#information{float: right;}
+#container{width: 1000px; padding-left: 10px; padding-right: 10px; padding-bottom: 10px; 
+border: 1px solid black; border-radius: 0px 0px 10px 10px; overflow: hidden;}
+#sidebar{float: left; width: 260px; margin-top: 20px;}
+#menu{height: 480px; border: 1px solid black; border-radius: 10px;}
+#tabs{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+#main{float: right;}
 #footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
+<script>
+    $(function(){
+	$("#tabs").tabs();
+    });
+</script>
 </head>
 <body>
-<div id="myTitle"><center>
+<div id="header"><center>
 <h2>Asgard - Home Automation System</h2>
 </center></div><div id="container">
-<div id="menu"><div class="title" style="width: 240px;"><h3>Current informations</h3></div>
+<div id="sidebar"><div id="menu"><div class="title" style="width: 240px;"><h3>Current informations</h3></div>
 )=====";
 
 struct display_controller : public Mongoose::WebController {
@@ -505,7 +514,23 @@ struct display_controller : public Mongoose::WebController {
         response << header << std::endl;
 	response << "<ul><li>Drivers running : " << nb_drivers << "</li>" << std::endl;
 	response << "<li>Sensors active : " << nb_sensors << "</li>" << std::endl;
-	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div><div id=\"information\">" << std::endl;
+	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
+response << "<div id=\"tabs\">" << std::endl;
+response << "<ul>" << std::endl;
+response << "<li class=\"myTabs\"><a href=\"#tabs-1\">Tab 1</a></li>" << std::endl;
+response << "<li class=\"myTabs\"><a href=\"#tabs-2\">Tab 2</a></li>" << std::endl;
+response << "<li class=\"myTabs\"><a href=\"#tabs-3\">Tab 3</a></li>" << std::endl;
+response << "</ul>" << std::endl;
+response << "<div id=\"tabs-1\">" << std::endl;
+response << "<p>Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit... </p>" << std::endl;
+response << "</div>" << std::endl;
+response << "<div id=\"tabs-2\">" << std::endl;
+response << "<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. </p>" << std::endl;
+response << "</div>" << std::endl;
+response << "<div id=\"tabs-3\">" << std::endl;
+response << "<p>ed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.  </p>" << std::endl;
+response << "</div></div></div>" << std::endl;
+	response << "<div id=\"main\">" << std::endl;
 	try {
 	    display_sensors(response);
 	    display_actuators(response);
