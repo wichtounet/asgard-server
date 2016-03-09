@@ -37,11 +37,10 @@ const std::size_t gpio_led_pin = 1;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
+const char* socket_path = "/tmp/asgard_socket";
 const int interval[3] = {12, 24, 48};
 
-const char* socket_path = "/tmp/asgard_socket";
-
-int socket_fd, nb_drivers = 0, nb_actuators = 0, nb_sensors = 0;
+int socket_fd;
 
 // Allocate space for the buffers
 char receive_buffer[socket_buffer_size];
@@ -95,7 +94,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
     message_ss >> command;
 
     if(command == "REG_SOURCE"){
-	nb_drivers++;
 	sources.emplace_back();
 
 	auto& source = sources.back();
@@ -123,7 +121,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	}
 	 std::cout << "asgard: new source registered " << source.id << " : " << source.name << std::endl;
     } else if(command == "UNREG_SOURCE"){
-	nb_drivers--;
         int source_id;
 	message_ss >> source_id;
 
@@ -133,7 +130,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         std::cout << "asgard: unregistered source " << source_id << std::endl;
     } else if(command == "REG_SENSOR"){
-	nb_sensors++;
         int source_id;
 	message_ss >> source_id;
 
@@ -164,7 +160,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	}
         std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
     } else if(command == "UNREG_SENSOR"){
-	nb_sensors--;
         int source_id;
 	message_ss >> source_id;
 
@@ -179,7 +174,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         std::cout << "asgard: sensor unregistered from source " << source_id << " : " << sensor_id << std::endl;
     } else if(command == "REG_ACTUATOR"){
-	nb_actuators++;
         int source_id;
 	message_ss >> source_id;
 
@@ -208,7 +202,6 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 	}
         std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
     } else if(command == "UNREG_ACTUATOR"){
-	nb_actuators--;
         int source_id;
 	message_ss >> source_id;
 
@@ -381,25 +374,22 @@ std::string header = R"=====(
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <style type="text/css">
 div{margin: 0 auto;}
-.content{width: 720px; margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+.content{width: 720px; margin-top: 20px; border: 1px solid black; border-radius: 5px;}
 .title{background-color: lightgray; opacity: 0.8; width: 700px; height: 55px; padding-left: 20px;
-border-radius: 10px 10px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
-.titre{padding-left: 10px;}
-.tabs{width: 720px; margin-top: 20px;}
+border-radius: 5px 5px 0px 0px; border-bottom: 1px solid black; display: inline-block;}
+.titre{padding: 8px 0px 8px 10px !important;}
+.tabs{width: 720px; margin-top: 20px; border: 1px solid black;}
 .myTabs{float: right !important; font-size: 14px;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
-border-radius: 10px 10px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
-#container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 10px 10px; overflow: hidden;}
+border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
+#container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 5px 5px; overflow: hidden;}
 #sidebar{float: left; width: 260px; margin-top: 20px;}
-#menu{width: 260px; height: 480px; border: 1px solid black; border-radius: 10px;}
-#led{margin-top: 20px; border: 1px solid black; border-radius: 10px;}
+#menu{width: 260px; height: 520px; border: 1px solid black; border-radius: 5px;}
+#led{margin-top: 20px; width: 260px; height: 200px; border: 1px solid black; border-radius: 5px;}
 #main{float: right;}
 #footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
-<script>
-    $(function(){
-	$(".tabs").tabs();
-    });
+<script>$(function(){$(".tabs").tabs();});
 </script>
 </head>
 <body>
@@ -443,7 +433,7 @@ struct display_controller : public Mongoose::WebController {
 	    	}
 	    	for(int i=0; i<3; ++i){
 	    	    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i <<
-	    	    "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis:{categories: [";
+	    	    "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
             	    bufSQL.format("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
             	    std::string query_result_2(bufSQL);
 	    	    CppSQLite3Query sensor_time = db.execQuery(query_result_2.c_str());
@@ -489,10 +479,11 @@ struct display_controller : public Mongoose::WebController {
 		std::string last_sensor_value;
 		while (!sensor_value.eof()){
 		    last_sensor_value = sensor_value.fieldValue(0);
+            	    sensor_value.nextRow();
 		}
 		if(!last_sensor_value.empty()){
-	    	    response << "<div class=\"content\"><div class=\"title\"><h3>Sensor name : " << 
-		    last_sensor_name << " (" << last_sensor_type << ")</h3></div>" << std::endl;
+	    	    response << "<div class=\"tabs\"><ul><li class=\"title\"><h3>Sensor name : " << 
+		    last_sensor_name << " (" << last_sensor_type << ")</li></ul>" << std::endl;
 		    response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
             	    bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
 	    	    int nbValue = db.execScalar(bufSQL);
@@ -516,7 +507,7 @@ struct display_controller : public Mongoose::WebController {
 	    CppSQLite3Query actuator_data = db.execQuery(query_result.c_str());
             std::string last_actuator_data = actuator_data.fieldValue(0);
 	    if(!last_actuator_data.empty()){
-	    	response << "<div class=\"content\"><div class=\"title\"><h3>Actuator name : " << last_actuator_name << "</h3></div>" << std::endl;
+	    	response << "<div class=\"tabs\"><ul><li class=\"titre\">Actuator name : " << last_actuator_name << "</li></ul>" << std::endl;
 	    	response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
             	buffSQL.format("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
 	    	int nbClicks = db.execScalar(buffSQL);
@@ -528,10 +519,10 @@ struct display_controller : public Mongoose::WebController {
 
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
-	response << "<ul><li>Drivers running : " << nb_drivers << "</li>" << std::endl;
-	response << "<li>Sensors active : " << nb_sensors << "</li>" << std::endl;
-	response << "<li>Actuators active : " << nb_actuators << "</li></ul></div>" << std::endl;
-response << "<div id=\"led\" style=\"width: 260px; height: 260px;\"><div class=\"title\" style=\"width: 240px;\"><h3>Onboard LED</h3></div></div></div>" << std::endl;
+	response << "<ul><li>Drivers running :</li>" << std::endl;
+	response << "<li>Sensors active :</li>" << std::endl;
+	response << "<li>Actuators active :</li></ul></div>" << std::endl;
+	response << "<div id=\"led\"><div class=\"title\" style=\"width: 240px;\"><h3>Onboard LED</h3></div></div></div>" << std::endl;
 	response << "<div id=\"main\">" << std::endl;
 	try {
 	    display_sensors(response);
