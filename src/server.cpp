@@ -1,4 +1,3 @@
-
 //=======================================================================
 // Copyright (c) 2015-2016 Baptiste Wicht
 // Distributed under the terms of the MIT License.
@@ -375,7 +374,7 @@ std::string header = R"=====(
 <style type="text/css">
 div{margin: 0 auto;}
 p{padding: 10px 0px 0px 20px;}
-ul.led li, ul.menu li{list-style: none; cursor: pointer; border: 1px solid gray; padding: 10px 0px 10px 10px; font-weight: bold; background-color: lightgray;}
+ul.led li, ul.menu li{list-style: none; cursor: pointer; border: 1px solid gray; padding: 10px 0px 10px 10px; background-color: lightgray;}
 ul.menu li{background: url(http://icongal.com/gallery/image/57586/right_monotone_arrow_next_play.png) 
 center right no-repeat; background-size: 30px 30px; background-color: lightgray;}
 .content{width: 720px; margin-top: 20px; border: 1px solid black; border-radius: 5px;}
@@ -403,12 +402,12 @@ function load(name){alert(name);}
 <div id="header"><center>
 <h2>Asgard - Home Automation System</h2>
 </center></div><div id="container">
-<div id="sidebar"><div class="tabs" style="width: 240px;"><ul><li class="title">Current informations</li></ul>
+<div id="sidebar"><div class="tabs" style="width: 240px;"><ul><li class="title">Current information</li></ul>
 )=====";
 
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response){
-	response << "<b><p>Drivers running :</p></b>" << std::endl;
+	response << "<b><p>Drivers running :</p>" << std::endl;
 	CppSQLite3Query source_name = db.execQuery("select name from source order by name;");
 	std::string last_source_name;
 	response << "<ul class=\"menu\">" << std::endl;
@@ -417,8 +416,8 @@ struct display_controller : public Mongoose::WebController {
 	    response << "<li onclick=\"load('" << last_source_name << "')\">" << last_source_name << "</li>" << std::endl;
             source_name.nextRow();
 	}
-	response << "</ul>" << std::endl;
-	response << "<p><b>Sensors active :</b></p>" << std::endl;
+	response << "</ul></b>" << std::endl;
+	response << "<b><p>Sensors active :</p>" << std::endl;
 	CppSQLite3Query sensor_name = db.execQuery("select distinct name from sensor order by name;");
 	std::string last_sensor_name;
 	response << "<ul class=\"menu\">" << std::endl;
@@ -427,8 +426,8 @@ struct display_controller : public Mongoose::WebController {
 	    response << "<li onclick=\"load('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
             sensor_name.nextRow();
 	}
-	response << "</ul>" << std::endl;
-	response << "<p><b>Actuators active :</b></p>" << std::endl;
+	response << "</ul></b>" << std::endl;
+	response << "<b><p>Actuators active :</p>" << std::endl;
 	CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
 	std::string last_actuator_name;
 	response << "<ul class=\"menu\">" << std::endl;
@@ -437,7 +436,7 @@ struct display_controller : public Mongoose::WebController {
 	    response << "<li onclick=\"load('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
             actuator_name.nextRow();
 	}
-	response << "</ul></div>" << std::endl;
+	response << "</ul></b></div>" << std::endl;
 	response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul>" <<
 	"<ul class=\"led\"><li class=\"button\" onclick=\"load('ON')\">ON</li><li class=\"button\" onclick=\"load('OFF')\">OFF</li></ul></div></div>" << std::endl;
 	response << "<div id=\"main\">" << std::endl;
@@ -589,7 +588,7 @@ int main(){
     //Run the wiringPi setup (as root)
     wiringPiSetup();
 
-    //Drop root privileges and run as pi again
+    //Drop root privileges and run as pi:pi again
     if(!revoke_root()){
        std::cout << "asgard: unable to revoke root privileges, exiting..." << std::endl;
        return 1;
@@ -617,5 +616,3 @@ int main(){
 
     return run();
 }
-
-
