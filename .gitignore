@@ -1,8 +1,9 @@
 release
 release_debug
 debug
-Makefile~
-src/server.cpp~
+
+# Ignore swap files
+*~
 
 # Ignore the database
 test.db
