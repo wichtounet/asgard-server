@@ -430,15 +430,29 @@ function show(name){
     $('#main').show();
     if(name=="dht11"){
     	$('.local').show();
+	for(var i=0; i<3; ++i){
+	    $('#localTemperature'+i).show();
+	    $('#localHumidity'+i).show();
+	}
     } else if(name=="ir"){
     	$('.ir_button_1').show();
     } else if(name=="random"){
     	$('.rand_100').show();
     } else if(name=="rf"){
     	$('.rf_weather').show();
+	for(var i=0; i<3; ++i){
+	    $('#rf_weatherTemperature'+i).show();
+	    $('#rf_weatherHumidity'+i).show();
+	}
     	$('.rf_button_1').show();
     } else {
     	$('.'+name).show();
+	if(name=="local" || name=="rf_weather"){
+	    for(var i=0; i<3; ++i){
+    	    	$('#'+name+'Temperature'+i).show();
+    	    	$('#'+name+'Humidity'+i).show();
+	   }
+	}
     }
     $('.tabs').show();
 }
