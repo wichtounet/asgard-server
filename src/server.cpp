@@ -422,7 +422,7 @@ $(function(){
         chart.reflow();
     });
 });
-function show(name){
+function load(name){
     $('.hideable').hide();
     if(name=="dht11"){
     	$('.local').show();
@@ -453,7 +453,7 @@ struct display_controller : public Mongoose::WebController {
         response << "<ul class=\"menu\">" << std::endl;
         while (!source_name.eof()) {
             last_source_name = source_name.fieldValue(0);
-            response << "<li onclick=\"show('" << last_source_name << "')\">" << last_source_name << "</li>" << std::endl;
+            response << "<li onclick=\"load('" << last_source_name << "')\">" << last_source_name << "</li>" << std::endl;
             source_name.nextRow();
         }
         response << "</ul>" << std::endl;
@@ -464,7 +464,7 @@ struct display_controller : public Mongoose::WebController {
         response << "<ul class=\"menu\">" << std::endl;
         while (!sensor_name.eof()) {
             last_sensor_name = sensor_name.fieldValue(0);
-            response << "<li onclick=\"show('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
+            response << "<li onclick=\"load('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
             sensor_name.nextRow();
         }
         response << "</ul>" << std::endl;
@@ -475,12 +475,13 @@ struct display_controller : public Mongoose::WebController {
         response << "<ul class=\"menu\">" << std::endl;
         while (!actuator_name.eof()) {
             last_actuator_name = actuator_name.fieldValue(0);
-            response << "<li onclick=\"show('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
+            response << "<li onclick=\"load('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
             actuator_name.nextRow();
         }
         response << "</ul></div>" << std::endl;
         response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul><ul class=\"led\">"
-                 << "<li class=\"button\" onclick=\"alert('ON')\">ON</li><li class=\"button\" onclick=\"alert('OFF')\">OFF</li></ul></div></div>" << std::endl;
+                 << "<li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>"
+		 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>" << std::endl;
         response << "<div id=\"main\">" << std::endl;
     }
 
@@ -631,15 +632,20 @@ struct display_controller : public Mongoose::WebController {
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-        //TO IMPLEMENT LED ON
+        digitalWrite(gpio_led_pin, HIGH);
+        display(request, response);
+    }
+
+    void led_off(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+        digitalWrite(gpio_led_pin, LOW);
         display(request, response);
     }
 
     //This will be called automatically
     void setup() {
         addRoute<display_controller>("GET", "/display", &display_controller::display);
-        addRoute<display_controller>("GET", "/LED_ON", &display_controller::led_on);
-        //TO IMPLEMENT LED OFF
+        addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
+        addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
     }
 };
 
