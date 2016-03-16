@@ -423,38 +423,18 @@ $(function(){
     });
 });
 function show(name){
-    $('div').hide();
-    $('#header').show();
-    $('#container').show();
-    $('#sidebar').show();
-    $('#main').show();
+    $('.hideable').hide();
     if(name=="dht11"){
     	$('.local').show();
-	for(var i=0; i<3; ++i){
-	    $('#localTemperature'+i).show();
-	    $('#localHumidity'+i).show();
-	}
     } else if(name=="ir"){
     	$('.ir_button_1').show();
     } else if(name=="random"){
     	$('.rand_100').show();
     } else if(name=="rf"){
     	$('.rf_weather').show();
-	for(var i=0; i<3; ++i){
-	    $('#rf_weatherTemperature'+i).show();
-	    $('#rf_weatherHumidity'+i).show();
-	}
-    	$('.rf_button_1').show();
     } else {
     	$('.'+name).show();
-	if(name=="local" || name=="rf_weather"){
-	    for(var i=0; i<3; ++i){
-    	    	$('#'+name+'Temperature'+i).show();
-    	    	$('#'+name+'Humidity'+i).show();
-	   }
-	}
     }
-    $('.tabs').show();
 }
 </script>
 </head>
@@ -525,7 +505,7 @@ struct display_controller : public Mongoose::WebController {
                 sensor_data.nextRow();
             }
             if (!last_sensor_data.empty() && (last_sensor_type == "Temperature" || last_sensor_type == "Humidity")) {
-                response << "<div class=\"" << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
+                response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
 			 << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
                 for (size_t i = 0; i < interval.size(); ++i) {
                     response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i 
@@ -600,7 +580,7 @@ struct display_controller : public Mongoose::WebController {
                 }
 
                 if (!last_sensor_value.empty()) {
-                    response << "<div class=\"" << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : " 
+                    response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : " 
 			     << last_sensor_name << " (" << last_sensor_type << ")</li></ul>" << std::endl;
                     response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
                     bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
@@ -626,7 +606,7 @@ struct display_controller : public Mongoose::WebController {
             CppSQLite3Query actuator_data  = db.execQuery(query_result.c_str());
             std::string last_actuator_data = actuator_data.fieldValue(0);
             if (!last_actuator_data.empty()) {
-                response << "<div class=\"" << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : " 
+                response << "<div class=\"hideable " << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : " 
 			 << last_actuator_name << "</li></ul>" << std::endl;
                 response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
                 buffSQL.format("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
