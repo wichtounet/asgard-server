@@ -603,7 +603,13 @@ struct display_controller : public Mongoose::WebController {
             buffSQL.format("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", last_actuator_pk);
             std::string query_result(buffSQL);
             CppSQLite3Query actuator_data  = db.execQuery(query_result.c_str());
-            std::string last_actuator_data = actuator_data.fieldValue(0);
+            
+	    std::string last_actuator_data;
+	    while (!actuator_data.eof()) {
+            	last_actuator_data = actuator_data.fieldValue(0);
+                actuator_data.nextRow();
+	    }
+
             if (!last_actuator_data.empty()) {
                 response << "<div class=\"hideable " << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : " 
 			 << last_actuator_name << "</li></ul>" << std::endl;
