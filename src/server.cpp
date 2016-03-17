@@ -37,7 +37,7 @@ const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
 const char* socket_path = "/tmp/asgard_socket";
-const std::vector<size_t> interval{12, 24, 48};
+const std::vector<size_t> interval{1, 12, 24};
 
 int socket_fd;
 
@@ -424,30 +424,28 @@ $(function(){
 });
 function load(name){
     $('.hideable').hide();
-    if(name=="dht11"){
+    if (name == "dht11") {
     	$('.local').show();
-    } else if(name=="ir"){
+    } else if (name == "ir") {
     	$('.ir_button_1').show();
-    } else if(name=="random"){
+    } else if (name == "random") {
     	$('.rand_100').show();
-    } else if(name=="rf"){
+    } else if (name == "rf") {
     	$('.rf_weather').show();
     } else {
-    	$('.'+name).show();
+    	$('.' + name).show();
     }
 }
 </script>
 </head>
 <body>
-<div id="header"><center>
-<h2>Asgard - Home Automation System</h2>
-</center></div><div id="container">
-<div id="sidebar"><div class="tabs" style="width: 240px;"><ul><li class="title">Current information</li></ul>
+<div id="header"><center><h2>Asgard - Home Automation System</h2></center></div>
+<div id="container"><div id="sidebar"><div class="tabs" style="width: 240px;"><ul><li class="title">Current information</li></ul>
 )=====";
 
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
-        response << "<p>Drivers running :</p>" << std::endl;
+        response << "<p>Drivers registered :</p>" << std::endl;
         CppSQLite3Query source_name = db.execQuery("select name from source order by name;");
         std::string last_source_name;
         response << "<ul class=\"menu\">" << std::endl;
