@@ -37,7 +37,7 @@ const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
 const char* socket_path = "/tmp/asgard_socket";
-const std::vector<size_t> interval{1, 12, 24};
+const std::vector<size_t> interval{1, 24, 48};
 
 int socket_fd;
 
@@ -645,11 +645,26 @@ struct display_controller : public Mongoose::WebController {
         display(request, response);
     }
 
+    /*TO IMPLEMENT
+    void data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+	std::string url = request.getUrl();
+	std::string type = ""; // Extract from url
+	std::string id_str = ""; // Extract from url
+	int id = atoi(id_str);
+	if (type == "sensor"){
+
+	} else {
+
+	}
+    }*/
+
     //This will be called automatically
     void setup() {
         addRoute<display_controller>("GET", "/display", &display_controller::display);
         addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
+        //addRoute<display_controller>("GET", "/sensor/1", &display_controller::data);
+        //addRoute<display_controller>("GET", "/actuator/2", &display_controller::data);
     }
 };
 
