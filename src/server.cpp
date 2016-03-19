@@ -91,6 +91,30 @@ CppSQLite3DB db;
 
 void cleanup();
 
+template<typename... T>
+void db_exec_dml(const std::string& query, T... args){
+    try {
+        CppSQLite3Buffer buffSQL;
+        buffSQL.format(query.c_str(), args...);
+        db.execDML(buffSQL);
+    } catch (CppSQLite3Exception& e) {
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+    }
+}
+
+template<typename... T>
+int db_exec_scalar(const std::string& query, T... args){
+    try {
+        CppSQLite3Buffer buffSQL;
+        buffSQL.format(query.c_str(), args...);
+        return db.execScalar(buffSQL);
+    } catch (CppSQLite3Exception& e) {
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+    }
+
+    return -1;
+}
+
 void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length) {
     std::stringstream message_ss(message);
 
@@ -156,16 +180,10 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
-        try {
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format(
-                "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
-                "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");",
-                sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str());
-            db.execDML(buffSQL);
-        } catch (CppSQLite3Exception& e) {
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
+        db_exec_dml(
+            "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
+            "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");"
+            , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str());
 
         std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
     } else if (command == "UNREG_SENSOR") {
@@ -202,14 +220,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
-        try {
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");",
-                           actuator.name.c_str(), source.id_sql, actuator.name.c_str());
-            db.execDML(buffSQL);
-        } catch (CppSQLite3Exception& e) {
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
+        db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
+                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str());
 
         std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
     } else if (command == "UNREG_ACTUATOR") {
@@ -239,15 +251,9 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source = select_source(source_id);
         auto& sensor = source.sensors[sensor_id];
 
-        try {
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
-            int sensor_pk = db.execScalar(buffSQL);
-            buffSQL.format("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
-            db.execDML(buffSQL);
-        } catch (CppSQLite3Exception& e) {
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
+        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
+
+        db_exec_dml("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
 
         std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
     } else if (command == "EVENT") {
@@ -263,15 +269,9 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source   = select_source(source_id);
         auto& actuator = source.actuators[actuator_id];
 
-        try {
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
-            int actuator_pk = db.execScalar(buffSQL);
-            buffSQL.format("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
-            db.execDML(buffSQL);
-        } catch (CppSQLite3Exception& e) {
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
+        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
+
+        db_exec_dml("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
     }
