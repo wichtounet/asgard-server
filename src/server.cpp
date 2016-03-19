@@ -352,8 +352,26 @@ void db_create() {
     }
 }
 
-void cleanup(){
+void set_led_off(){
+#ifdef __RPI__
     digitalWrite(gpio_led_pin, LOW);
+#endif
+}
+
+void set_led_on(){
+#ifdef __RPI__
+    digitalWrite(gpio_led_pin, HIGH);
+#endif
+}
+
+void init_led(){
+#ifdef __RPI__
+    pinMode(gpio_led_pin, OUTPUT);
+#endif
+}
+
+void cleanup(){
+    set_led_on();
     close(socket_fd);
     unlink("/tmp/asgard_socket");
 }
@@ -639,12 +657,12 @@ struct display_controller : public Mongoose::WebController {
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-        digitalWrite(gpio_led_pin, HIGH);
+        set_led_on();
         display(request, response);
     }
 
     void led_off(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-        digitalWrite(gpio_led_pin, LOW);
+        set_led_off();
         display(request, response);
     }
 
@@ -674,8 +692,10 @@ struct display_controller : public Mongoose::WebController {
 } //end of anonymous namespace
 
 int main(){
+#ifdef __RPI__
     //Run the wiringPi setup (as root)
     wiringPiSetup();
+#endif
 
     //Drop root privileges and run as pi:pi again
     if(!revoke_root()){
@@ -700,8 +720,8 @@ int main(){
     signal(SIGTERM, terminate);
     signal(SIGINT, terminate);
 
-    pinMode(gpio_led_pin, OUTPUT);
-    digitalWrite(gpio_led_pin, HIGH);
+    init_led();
+    set_led_on();
 
     return run();
 }
