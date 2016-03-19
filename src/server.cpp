@@ -655,7 +655,7 @@ struct display_controller : public Mongoose::WebController {
         } catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-        response << "</div></div><div id=\"footer\">© 2015-2016 Stéphane Ly. All Rights Reserved.</div></body></html>" << std::endl;
+        response << "</div></div><div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
