@@ -348,7 +348,6 @@ void db_create() {
 
         // Perform pi insertion
         db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-
     } catch (CppSQLite3Exception& e) {
         std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
     }
@@ -502,7 +501,7 @@ struct display_controller : public Mongoose::WebController {
         response << "</ul></div>" << std::endl;
         response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul><ul class=\"led\">"
                  << "<li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>"
-         << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>" << std::endl;
+                 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>" << std::endl;
         response << "<div id=\"main\">" << std::endl;
     }
 
