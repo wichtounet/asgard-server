@@ -301,6 +301,8 @@ int run(){
         return 1;
     }
 
+    std::cout << "asgard: Server started" << std::endl;
+
     while(true){
         sockaddr_un client_address;
         socklen_t address_length = sizeof(struct sockaddr_un);
