@@ -14,7 +14,11 @@ include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
 CXX_FLAGS += -ICppSQLite -pedantic -pthread
-LD_FLAGS  += -lsqlite3 -lmongoose -llirc_client -lwiringPi -pthread
+LD_FLAGS  += -lsqlite3 -lmongoose
+
+ifeq (,$(MAKE_NO_RPI))
+LD_FLAGS  += -llirc_client -lwiringPi
+endif
 
 $(eval $(call auto_folder_compile,src))
 $(eval $(call auto_folder_compile,CppSQLite))
@@ -26,7 +30,7 @@ debug: debug_server
 
 all: release release_debug debug
 
-run: release 
+run: release
 	sudo ./release/bin/server
 
 remote_clean:
