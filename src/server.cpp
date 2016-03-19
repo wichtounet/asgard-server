@@ -22,7 +22,10 @@
 #include<signal.h>
 
 #include <ctime>
+
+#ifdef __RPI__
 #include <wiringPi.h>
+#endif
 
 #include <mongoose/Server.h>
 #include <mongoose/WebController.h>
@@ -507,7 +510,7 @@ struct display_controller : public Mongoose::WebController {
                 response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
 			 << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
                 for (size_t i = 0; i < interval.size(); ++i) {
-                    response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i 
+                    response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i
 			     << "\" data-toggle=\"tab\">" << interval[i] << " hours</a></li>" << std::endl;
                 }
 
@@ -519,7 +522,7 @@ struct display_controller : public Mongoose::WebController {
                 }
 
                 for (size_t i = 0; i < interval.size(); ++i) {
-                    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i 
+                    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i
 			     << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
                     bufSQL.format("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
                     std::string query_result_2(bufSQL);
@@ -579,7 +582,7 @@ struct display_controller : public Mongoose::WebController {
                 }
 
                 if (!last_sensor_value.empty()) {
-                    response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : " 
+                    response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
 			     << last_sensor_name << " (" << last_sensor_type << ")</li></ul>" << std::endl;
                     response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
                     bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
@@ -603,7 +606,7 @@ struct display_controller : public Mongoose::WebController {
             buffSQL.format("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", last_actuator_pk);
             std::string query_result(buffSQL);
             CppSQLite3Query actuator_data  = db.execQuery(query_result.c_str());
-            
+
 	    std::string last_actuator_data;
 	    while (!actuator_data.eof()) {
             	last_actuator_data = actuator_data.fieldValue(0);
@@ -611,7 +614,7 @@ struct display_controller : public Mongoose::WebController {
 	    }
 
             if (!last_actuator_data.empty()) {
-                response << "<div class=\"hideable " << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : " 
+                response << "<div class=\"hideable " << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : "
 			 << last_actuator_name << "</li></ul>" << std::endl;
                 response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
                 buffSQL.format("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
