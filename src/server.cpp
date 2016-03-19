@@ -108,7 +108,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         message_ss >> source.name;
 
         // Give the source id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", source.id);
+        auto nbytes = snprintf(write_buffer, 4096, "%ld", source.id);
         if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
@@ -150,7 +150,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         sensor.id = source.sensors_counter++;
 
         // Give the sensor id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", sensor.id);
+        auto nbytes = snprintf(write_buffer, 4096, "%ld", sensor.id);
         if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
@@ -196,7 +196,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         actuator.id = source.actuators_counter++;
 
         // Give the sensor id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", actuator.id);
+        auto nbytes = snprintf(write_buffer, 4096, "%ld", actuator.id);
         if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
