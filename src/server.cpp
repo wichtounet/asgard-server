@@ -683,6 +683,7 @@ struct display_controller : public Mongoose::WebController {
 
     //This will be called automatically
     void setup() {
+        addRoute<display_controller>("GET", "/", &display_controller::display);
         addRoute<display_controller>("GET", "/display", &display_controller::display);
         addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
