@@ -115,6 +115,19 @@ int db_exec_scalar(const std::string& query, T... args){
     return -1;
 }
 
+template<typename... T>
+CppSQLite3Query db_exec_query(const std::string& query, T... args){
+    try {
+        CppSQLite3Buffer buffSQL;
+        buffSQL.format(query.c_str(), args...);
+        return db.execQuery(buffSQL);
+    } catch (CppSQLite3Exception& e) {
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+    }
+
+    return {};
+}
+
 void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length) {
     std::stringstream message_ss(message);
 
@@ -468,22 +481,24 @@ function load(name){
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
         response << "<p>Drivers registered :</p>" << std::endl;
+
         CppSQLite3Query source_name = db.execQuery("select name from source order by name;");
-        std::string last_source_name;
+
         response << "<ul class=\"menu\">" << std::endl;
         while (!source_name.eof()) {
-            last_source_name = source_name.fieldValue(0);
+            std::string last_source_name = source_name.fieldValue(0);
             response << "<li onclick=\"load('" << last_source_name << "')\">" << last_source_name << "</li>" << std::endl;
             source_name.nextRow();
         }
         response << "</ul>" << std::endl;
 
         response << "<p>Sensors active :</p>" << std::endl;
+
         CppSQLite3Query sensor_name = db.execQuery("select distinct name from sensor order by name;");
-        std::string last_sensor_name;
+
         response << "<ul class=\"menu\">" << std::endl;
         while (!sensor_name.eof()) {
-            last_sensor_name = sensor_name.fieldValue(0);
+            std::string last_sensor_name = sensor_name.fieldValue(0);
             response << "<li onclick=\"load('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
             sensor_name.nextRow();
         }
@@ -491,18 +506,19 @@ struct display_controller : public Mongoose::WebController {
 
         response << "<p>Actuators active :</p>" << std::endl;
         CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
-        std::string last_actuator_name;
+
         response << "<ul class=\"menu\">" << std::endl;
         while (!actuator_name.eof()) {
-            last_actuator_name = actuator_name.fieldValue(0);
+            std::string last_actuator_name = actuator_name.fieldValue(0);
             response << "<li onclick=\"load('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
             actuator_name.nextRow();
         }
-        response << "</ul></div>" << std::endl;
-        response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul><ul class=\"led\">"
+
+        response << "</ul></div>" << std::endl
+                 << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul><ul class=\"led\">"
                  << "<li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>"
-                 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>" << std::endl;
-        response << "<div id=\"main\">" << std::endl;
+                 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>" << std::endl
+                 << "<div id=\"main\">" << std::endl;
     }
 
     void display_sensors(Mongoose::StreamResponse& response) {
@@ -510,134 +526,112 @@ struct display_controller : public Mongoose::WebController {
         int last_sensor_pk;
         std::string last_sensor_name;
         std::string last_sensor_type;
-        std::string last_sensor_data;
         while (!sensor_name.eof()) {
             last_sensor_pk   = sensor_name.getIntField(0);
             last_sensor_name = sensor_name.fieldValue(1);
             last_sensor_type = sensor_name.fieldValue(2);
+
             std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
             last_sensor_type[0] = toupper(last_sensor_type[0]);
-            CppSQLite3Buffer bufSQL;
-            bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
-            std::string query_result_1(bufSQL);
-            CppSQLite3Query sensor_data = db.execQuery(query_result_1.c_str());
-            while (!sensor_data.eof()) {
-                last_sensor_data = sensor_data.fieldValue(0);
-                sensor_data.nextRow();
-            }
-            if (!last_sensor_data.empty() && (last_sensor_type == "Temperature" || last_sensor_type == "Humidity")) {
-                response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
-             << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
-                for (size_t i = 0; i < interval.size(); ++i) {
-                    response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i
-                 << "\" data-toggle=\"tab\">" << interval[i] << " hours</a></li>" << std::endl;
-                }
 
-                response << "</ul>" << std::endl;
-                if (last_sensor_type == "Temperature") {
-                    response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
-                } else if (last_sensor_type == "Humidity") {
-                    response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
-                }
+            CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
 
-                for (size_t i = 0; i < interval.size(); ++i) {
-                    response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i
-                 << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
-                    bufSQL.format("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
-                    std::string query_result_2(bufSQL);
-                    CppSQLite3Query sensor_time = db.execQuery(query_result_2.c_str());
-                    std::string last_sensor_time;
-                    while (!sensor_time.eof()) {
-                        last_sensor_time = sensor_time.fieldValue(0);
-                        response << "\"" << last_sensor_time << "\""
-                                 << ",";
-                        sensor_time.nextRow();
-                    }
+            if (!sensor_data.eof()) {
+                std::string last_sensor_data = sensor_data.fieldValue(0);
 
-                    response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " << interval[i] << " hours from " << last_sensor_time
-                             << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
-
-                    if (last_sensor_type == "Temperature") {
-                        response << " (°C)'";
-                    } else if (last_sensor_type == "Humidity") {
-                        response << " (%)'";
-                    }
-
-                    response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
-
-                    if (last_sensor_type == "Temperature") {
-                        response << "°C'";
-                    } else if (last_sensor_type == "Humidity") {
-                        response << "%'";
-                    }
-
-                    response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: [";
-
-                    bufSQL.format("select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
-                    std::string query_result_3(bufSQL);
-                    sensor_data = db.execQuery(query_result_3.c_str());
-
-                    while (!sensor_data.eof()) {
-                        last_sensor_data = sensor_data.fieldValue(0);
-                        response << last_sensor_data << ",";
-                        sensor_data.nextRow();
-                    }
-
-                    response << "]}]});});" << "</script>" << std::endl;
-                    response << "<div id=\"" << last_sensor_name << last_sensor_type << i << "\" style=\"width: 680px; height: 240px\"></div>" << std::endl;
-                }
-
-                response << "</div></div>" << std::endl;
-            } else {
-                CppSQLite3Buffer bufSQL;
-                bufSQL.format("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
-                std::string query_result(bufSQL);
-                CppSQLite3Query sensor_value = db.execQuery(query_result.c_str());
-
-                std::string last_sensor_value;
-                while (!sensor_value.eof()) {
-                    last_sensor_value = sensor_value.fieldValue(0);
-                    sensor_value.nextRow();
-                }
-
-                if (!last_sensor_value.empty()) {
+                if (last_sensor_type == "Temperature" || last_sensor_type == "Humidity") {
                     response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
-                 << last_sensor_name << " (" << last_sensor_type << ")</li></ul>" << std::endl;
-                    response << "<ul><li>Last Value : " << last_sensor_value << "</li>" << std::endl;
-                    bufSQL.format("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
-                    int nbValue = db.execScalar(bufSQL);
+                             << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
+                    for (size_t i = 0; i < interval.size(); ++i) {
+                        response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i
+                                 << "\" data-toggle=\"tab\">" << interval[i] << " hours</a></li>" << std::endl;
+                    }
+
+                    response << "</ul>" << std::endl;
+                    if (last_sensor_type == "Temperature") {
+                        response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+                    } else if (last_sensor_type == "Humidity") {
+                        response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
+                    }
+
+                    for (size_t i = 0; i < interval.size(); ++i) {
+                        response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i
+                                 << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
+
+                        CppSQLite3Query sensor_time = db_exec_query("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
+
+                        std::string last_sensor_time;
+                        while (!sensor_time.eof()) {
+                            last_sensor_time = sensor_time.fieldValue(0);
+                            response << "\"" << last_sensor_time << "\""
+                                     << ",";
+                            sensor_time.nextRow();
+                        }
+
+                        response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " << interval[i] << " hours from " << last_sensor_time
+                                 << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
+
+                        if (last_sensor_type == "Temperature") {
+                            response << " (°C)'";
+                        } else if (last_sensor_type == "Humidity") {
+                            response << " (%)'";
+                        }
+
+                        response << "}}, plotOptions: {line: {animation: false}}, exporting: {enabled: false}, credits: {enabled: false}, tooltip: {valueSuffix: '";
+
+                        if (last_sensor_type == "Temperature") {
+                            response << "°C'";
+                        } else if (last_sensor_type == "Humidity") {
+                            response << "%'";
+                        }
+
+                        response << "}, series: [{showInLegend: false, name: '" << last_sensor_name << "', data: [";
+
+                        sensor_data = db_exec_query("select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
+
+                        while (!sensor_data.eof()) {
+                            last_sensor_data = sensor_data.fieldValue(0);
+                            response << last_sensor_data << ",";
+                            sensor_data.nextRow();
+                        }
+
+                        response << "]}]});});"
+                                 << "</script>" << std::endl
+                                 << "<div id=\"" << last_sensor_name << last_sensor_type << i << "\" style=\"width: 680px; height: 240px\"></div>" << std::endl;
+                    }
+
+                    response << "</div></div>" << std::endl;
+                } else {
+                    response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
+                             << last_sensor_name << " (" << last_sensor_type << ")</li></ul>" << std::endl
+                             << "<ul><li>Last Value : " << last_sensor_data << "</li>" << std::endl;
+
+                    int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", last_sensor_pk);
                     response << "<li>Number of Values : " << nbValue << "</li></ul></div></div>" << std::endl;
                 }
             }
+
             sensor_name.nextRow();
         }
     }
 
     void display_actuators(Mongoose::StreamResponse& response) {
         CppSQLite3Query actuator_name = db.execQuery("select pk_actuator, name from actuator order by name;");
-        int last_actuator_pk;
-        std::string last_actuator_name;
+
         while (!actuator_name.eof()) {
-            last_actuator_pk   = actuator_name.getIntField(0);
-            last_actuator_name = actuator_name.fieldValue(1);
+            int last_actuator_pk   = actuator_name.getIntField(0);
+            std::string last_actuator_name = actuator_name.fieldValue(1);
 
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", last_actuator_pk);
-            std::string query_result(buffSQL);
-            CppSQLite3Query actuator_data  = db.execQuery(query_result.c_str());
+            CppSQLite3Query actuator_data  = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", last_actuator_pk);
 
-        std::string last_actuator_data;
-        while (!actuator_data.eof()) {
-                last_actuator_data = actuator_data.fieldValue(0);
-                actuator_data.nextRow();
-        }
+            if (!actuator_data.eof()) {
+                std::string last_actuator_data = actuator_data.fieldValue(0);
 
-            if (!last_actuator_data.empty()) {
                 response << "<div class=\"hideable " << last_actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : "
-             << last_actuator_name << "</li></ul>" << std::endl;
-                response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
-                buffSQL.format("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
-                int nbClicks = db.execScalar(buffSQL);
+                         << last_actuator_name << "</li></ul>" << std::endl
+                         << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
+
+                int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", last_actuator_pk);
                 response << "<li>Number of Inputs : " << nbClicks << "</li></ul></div></div>" << std::endl;
             }
 
