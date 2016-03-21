@@ -459,17 +459,7 @@ $(function(){
 });
 function load(name){
     $('.hideable').hide();
-    if (name == "dht11") {
-        $('.local').show();
-    } else if (name == "ir") {
-        $('.ir_button_1').show();
-    } else if (name == "random") {
-        $('.rand_100').show();
-    } else if (name == "rf") {
-        $('.rf_weather').show();
-    } else {
-        $('.' + name).show();
-    }
+    $('.' + name).show();
 }
 </script>
 </head>
@@ -481,13 +471,32 @@ function load(name){
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
         response << "<p>Drivers registered :</p>" << std::endl;
+        response << "<script>function load_source(pk){$('.hideable').hide();" << std::endl;
 
-        CppSQLite3Query source_name = db.execQuery("select name from source order by name;");
+        CppSQLite3Query sensor_name = db.execQuery("select distinct name, fk_source from sensor order by name;");
+        while (!sensor_name.eof()) {
+            std::string last_sensor_name = sensor_name.fieldValue(0);
+            int last_sensor_fk = sensor_name.fieldValue(1);
+            response << "if (pk == " << last_sensor_fk << "){$('.' + " << last_sensor_name << ").show();}" << std::endl;
+            sensor_name.nextRow();
+        }
+
+        CppSQLite3Query actuator_name = db.execQuery("select distinct name, fk_source from actuator order by name;");
+        while (!actuator_name.eof()) {
+            std::string last_actuator_name = actuator_name.fieldValue(0);
+            int last_actuator_fk = actuator_name.fieldValue(1);
+            response << "if (pk == " << last_actuator_fk << "){$('.' + " << last_actuator_name << ").show();}" << std::endl;
+            actuator_name.nextRow();
+        }
+        response << "}</script>" << std::endl;
+
+        CppSQLite3Query source_name = db.execQuery("select name, pk_source from source order by name;");
 
         response << "<ul class=\"menu\">" << std::endl;
         while (!source_name.eof()) {
             std::string last_source_name = source_name.fieldValue(0);
-            response << "<li onclick=\"load('" << last_source_name << "')\">" << last_source_name << "</li>" << std::endl;
+            std::string last_source_pk = source_name.fieldValue(1);
+            response << "<li onclick=\"load_source('" << last_source_pk << "')\">" << last_source_name << "</li>" << std::endl;
             source_name.nextRow();
         }
         response << "</ul>" << std::endl;
