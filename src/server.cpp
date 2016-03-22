@@ -470,25 +470,8 @@ function load(name){
 
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
-        response << "<p>Drivers registered :</p>" << std::endl;
-        response << "<script>function load_source(pk){$('.hideable').hide();" << std::endl;
-
-        CppSQLite3Query sensor_name = db.execQuery("select distinct name, fk_source from sensor order by name;");
-        while (!sensor_name.eof()) {
-            std::string last_sensor_name = sensor_name.fieldValue(0);
-            int last_sensor_fk = sensor_name.fieldValue(1);
-            response << "if (pk == " << last_sensor_fk << "){$('.' + " << last_sensor_name << ").show();}" << std::endl;
-            sensor_name.nextRow();
-        }
-
-        CppSQLite3Query actuator_name = db.execQuery("select distinct name, fk_source from actuator order by name;");
-        while (!actuator_name.eof()) {
-            std::string last_actuator_name = actuator_name.fieldValue(0);
-            int last_actuator_fk = actuator_name.fieldValue(1);
-            response << "if (pk == " << last_actuator_fk << "){$('.' + " << last_actuator_name << ").show();}" << std::endl;
-            actuator_name.nextRow();
-        }
-        response << "}</script>" << std::endl;
+        response << "<ul class=\"menu\"><li onclick=\"load('hideable')\">Show All Menu Items</li></ul>" << std::endl;
+        response << "}</script><p>Drivers registered :</p>" << std::endl;
 
         CppSQLite3Query source_name = db.execQuery("select name, pk_source from source order by name;");
 
@@ -651,9 +634,28 @@ struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
         try {
+            response << "<script>function load_source(pk){$('.hideable').hide();" << std::endl;
+
+            CppSQLite3Query sensor_name = db.execQuery("select distinct name, fk_source from sensor order by name;");
+            while (!sensor_name.eof()) {
+                std::string last_sensor_name = sensor_name.fieldValue(0);
+                int last_sensor_fk = sensor_name.fieldValue(1);
+                response << "if (pk == " << last_sensor_fk << "){$('.' + " << last_sensor_name << ").show();}" << std::endl;
+                sensor_name.nextRow();
+            }
+
+            CppSQLite3Query actuator_name = db.execQuery("select distinct name, fk_source from actuator order by name;");
+            while (!actuator_name.eof()) {
+                std::string last_actuator_name = actuator_name.fieldValue(0);
+                int last_actuator_fk = actuator_name.fieldValue(1);
+                response << "else if (pk == " << last_actuator_fk << "){$('.' + " << last_actuator_name << ").show();}" << std::endl;
+                actuator_name.nextRow();
+            }
+
             display_menu(response);
             display_sensors(response);
             display_actuators(response);
+        
         } catch (CppSQLite3Exception& e){
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
