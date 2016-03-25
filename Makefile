@@ -3,8 +3,6 @@ LD=g++
 
 default: release
 
-.PHONY: default release debug all clean
-
 include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
 
@@ -13,6 +11,8 @@ pi.conf:
 	echo "pi=192.168.20.161" >> pi.conf
 	echo "password=raspberry" >> pi.conf
 	echo "dir=/home/${user}/asgard/asgard-server/" >> pi.conf
+
+conf: pi.conf
 
 include pi.conf
 
@@ -55,3 +55,5 @@ remote_make_run:
 clean: base_clean
 
 include make-utils/cpp-utils-finalize.mk
+
+.PHONY: default release_debug release debug all clean conf
