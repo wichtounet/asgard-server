@@ -10,7 +10,7 @@ pi.conf:
 	echo "user=pi" > pi.conf
 	echo "pi=192.168.20.161" >> pi.conf
 	echo "password=raspberry" >> pi.conf
-	echo "dir=/home/${user}/asgard/asgard-server/" >> pi.conf
+	echo "dir=/home/pi/asgard/asgard-server/" >> pi.conf
 
 conf: pi.conf
 
