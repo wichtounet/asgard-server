@@ -544,7 +544,7 @@ struct display_controller : public Mongoose::WebController {
                              << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
                     for (size_t i = 0; i < interval.size(); ++i) {
                         response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i
-                                 << "\" data-toggle=\"tab\">" << interval[i] << " hours</a></li>" << std::endl;
+                                 << "\" data-toggle=\"tab\">" << interval[i] << "h</a></li>" << std::endl;
                     }
 
                     response << "</ul>" << std::endl;
