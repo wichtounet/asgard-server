@@ -1,17 +1,20 @@
 CXX=g++
 LD=g++
 
-user=pi
-pi=192.168.20.161
-password=raspberry
-dir=/home/${user}/asgard/asgard-server/
-
 default: release
 
 .PHONY: default release debug all clean
 
 include make-utils/flags-pi.mk
 include make-utils/cpp-utils.mk
+
+pi.conf:
+	echo "user=pi" > pi.conf
+	echo "pi=192.168.20.161" >> pi.conf
+	echo "password=raspberry" >> pi.conf
+	echo "dir=/home/${user}/asgard/asgard-server/" >> pi.conf
+
+include pi.conf
 
 CXX_FLAGS += -ICppSQLite -pedantic -pthread
 LD_FLAGS  += -lsqlite3 -lmongoose
