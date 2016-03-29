@@ -385,7 +385,7 @@ void init_led(){
 }
 
 void cleanup(){
-    set_led_on();
+    set_led_off();
     close(socket_fd);
     unlink("/tmp/asgard_socket");
 }
