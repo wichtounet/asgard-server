@@ -673,18 +673,18 @@ struct display_controller : public Mongoose::WebController {
         display(request, response);
     }
 
-    /*TO IMPLEMENT
+    //TO IMPLEMENT
     void data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::string url = request.getUrl();
-    std::string type = ""; // Extract from url
-    std::string id_str = ""; // Extract from url
-    int id = atoi(id_str);
-    if (type == "sensor"){
+        std::string url = request.getUrl();
+        /*std::string type = ""; // Extract from url
+        std::string id_str = ""; // Extract from url
+        int id = atoi(id_str);
+        if (type == "sensor"){
 
-    } else {
+        } else {
 
+        }*/
     }
-    }*/
 
     //This will be called automatically
     void setup() {
@@ -692,8 +692,28 @@ struct display_controller : public Mongoose::WebController {
         addRoute<display_controller>("GET", "/display", &display_controller::display);
         addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
-        //addRoute<display_controller>("GET", "/sensor/1", &display_controller::data);
-        //addRoute<display_controller>("GET", "/actuator/2", &display_controller::data);
+        try {
+            CppSQLite3Query sensor_name = db.execQuery("select distinct name, type from sensor order by name;");
+            while (!sensor_name.eof()) {
+                std::string last_sensor_name = sensor_name.fieldValue(0);
+                std::string last_sensor_type = sensor_name.fieldValue(1);
+                std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
+                std::string url = "/" +last_sensor_name + "_" + last_sensor_type;
+                addRoute<display_controller>("GET", url, &display_controller::data);
+                sensor_name.nextRow();
+            }
+
+            CppSQLite3Query actuator_name = db.execQuery("select distinct name from actuator order by name;");
+            while (!actuator_name.eof()) {
+                std::string last_actuator_name = actuator_name.fieldValue(0);
+                std::string url = "/" +last_actuator_name;
+                addRoute<display_controller>("GET", url, &display_controller::data);
+                actuator_name.nextRow();
+            }
+
+        } catch (CppSQLite3Exception& e){
+            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        }
     }
 };
 
