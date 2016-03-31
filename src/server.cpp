@@ -316,7 +316,7 @@ int run(){
 
     std::cout << "asgard: Server started" << std::endl;
 
-    while(true){
+    while (true) {
         sockaddr_un client_address;
         socklen_t address_length = sizeof(struct sockaddr_un);
 
@@ -366,49 +366,49 @@ void db_create() {
     }
 }
 
-void set_led_off(){
+void set_led_off() {
 #ifdef __RPI__
     digitalWrite(gpio_led_pin, LOW);
 #endif
 }
 
-void set_led_on(){
+void set_led_on() {
 #ifdef __RPI__
     digitalWrite(gpio_led_pin, HIGH);
 #endif
 }
 
-void init_led(){
+void init_led() {
 #ifdef __RPI__
     pinMode(gpio_led_pin, OUTPUT);
 #endif
 }
 
-void cleanup(){
+void cleanup() {
     set_led_off();
     close(socket_fd);
     unlink("/tmp/asgard_socket");
 }
 
-void terminate(int /*signo*/){
+void terminate(int /*signo*/) {
     std::cout << "asgard: server: stopping the server" << std::endl;
     cleanup();
     abort();
 }
 
-bool revoke_root(){
+bool revoke_root() {
     if (getuid() == 0) {
-        if (setgid(1000) != 0){
+        if (setgid(1000) != 0) {
             std::cout << "asgard: setgid: Unable to drop group privileges: " << strerror(errno) << std::endl;
             return false;
         }
-        if (setuid(1000) != 0){
+        if (setuid(1000) != 0) {
             std::cout << "asgard: setgid: Unable to drop user privileges: " << strerror(errno) << std::endl;
             return false;
         }
     }
 
-    if (setuid(0) != -1){
+    if (setuid(0) != -1) {
         std::cout << "asgard: managed to regain root privileges, exiting..." << std::endl;
         return false;
     }
@@ -449,7 +449,7 @@ border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1
 #footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
 <script>
-$(function(){
+$( function() {
     $(".tabs").tabs();
     $('a[data-toggle="tab"]').on('click', function (e) {
         var selector = $(this.getAttribute("href"));
@@ -457,7 +457,7 @@ $(function(){
         chart.reflow();
     });
 });
-function load(name){
+function load(name) {
     $('.hideable').hide();
     $('.' + name).show();
 }
@@ -470,10 +470,9 @@ struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
         response << "<ul class=\"menu\"><li onclick=\"load('hideable')\">Show All</li></ul>" << std::endl;
         response << "<p>Drivers registered :</p>" << std::endl;
+        response << "<ul class=\"menu\">" << std::endl;
 
         CppSQLite3Query source_name = db.execQuery("select name, pk_source from source order by name;");
-
-        response << "<ul class=\"menu\">" << std::endl;
 
         while (!source_name.eof()) {
             std::string last_source_name = source_name.fieldValue(0);
@@ -481,25 +480,25 @@ struct display_controller : public Mongoose::WebController {
             response << "<li onclick=\"load_source('" << last_source_pk << "')\">" << last_source_name << "</li>" << std::endl;
             source_name.nextRow();
         }
-        response << "</ul>" << std::endl;
 
+        response << "</ul>" << std::endl;
         response << "<p>Sensors active :</p>" << std::endl;
+        response << "<ul class=\"menu\">" << std::endl;
 
         CppSQLite3Query sensor_name = db.execQuery("select distinct name from sensor order by name;");
 
-        response << "<ul class=\"menu\">" << std::endl;
 
         while (!sensor_name.eof()) {
             std::string last_sensor_name = sensor_name.fieldValue(0);
             response << "<li onclick=\"load('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
             sensor_name.nextRow();
         }
+
         response << "</ul>" << std::endl;
-
         response << "<p>Actuators active :</p>" << std::endl;
-        CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
-
         response << "<ul class=\"menu\">" << std::endl;
+
+        CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
 
         while (!actuator_name.eof()) {
             std::string last_actuator_name = actuator_name.fieldValue(0);
@@ -507,11 +506,12 @@ struct display_controller : public Mongoose::WebController {
             actuator_name.nextRow();
         }
 
-        response << "</ul></div>" << std::endl
-                 << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul><ul class=\"led\">"
-                 << "<li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>"
-                 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul></div></div>"
-                 << "<div id=\"main\">" << std::endl;
+        response << "</ul></div>" << std::endl;
+        response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul>" << std::endl;
+        response << "<ul class=\"led\"><li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>" << std::endl;
+        response << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul>" << std::endl;
+        response << "</div></div>" << std::endl;
+        response << "<div id=\"main\">" << std::endl;
     }
 
     void display_sensors(Mongoose::StreamResponse& response) {
@@ -550,17 +550,18 @@ struct display_controller : public Mongoose::WebController {
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
         response << header << std::endl;
         response << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl;
-        response << "<div id=\"container\"><div id=\"sidebar\"><div class=\"tabs\" style=\"width: 240px;\">"
-                 << "<ul><li class=\"title\">Current information</li></ul>" << std::endl;
+        response << "<div id=\"container\"><div id=\"sidebar\"><div class=\"tabs\" style=\"width: 240px;\">"<< std::endl;
+        response << "<ul><li class=\"title\">Current information</li></ul>" << std::endl;
         try {
-            response << "<script>function load_source(pk){$('.hideable').hide();" << std::endl;
+            response << "<script>function load_source(pk) {" << std::endl; 
+            response << "$('.hideable').hide();" << std::endl;
 
             CppSQLite3Query sensor_name = db.execQuery("select distinct name, fk_source from sensor order by name;");
 
             while (!sensor_name.eof()) {
                 std::string last_sensor_name = sensor_name.fieldValue(0);
                 int last_sensor_fk = sensor_name.getIntField(1);
-                response << "if (pk == " << last_sensor_fk << "){$('." << last_sensor_name << "').show();}" << std::endl;
+                response << "if (pk == " << last_sensor_fk << ") { $('." << last_sensor_name << "').show(); }" << std::endl;
                 sensor_name.nextRow();
             }
 
@@ -569,19 +570,20 @@ struct display_controller : public Mongoose::WebController {
             while (!actuator_name.eof()) {
                 std::string last_actuator_name = actuator_name.fieldValue(0);
                 int last_actuator_fk = actuator_name.getIntField(1);
-                response << "if (pk == " << last_actuator_fk << "){$('." << last_actuator_name << "').show();}" << std::endl;
+                response << "if (pk == " << last_actuator_fk << ") { $('." << last_actuator_name << "').show(); }" << std::endl;
                 actuator_name.nextRow();
             }
-            response << "}</script>" << std::endl;
+            response << "}" << "</script>" << std::endl;
 
             display_menu(response);
             display_sensors(response);
             display_actuators(response);
         
-        } catch (CppSQLite3Exception& e){
+        } catch (CppSQLite3Exception& e) {
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-        response << "</div></div><div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+        response << "</div></div>" << std::endl; 
+        response << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
@@ -594,14 +596,13 @@ struct display_controller : public Mongoose::WebController {
         display(request, response);
     }
 
-    //TO IMPLEMENT
     void sensor_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
         std::string sensor_name, sensor_type;
         std::string url = request.getUrl();
         size_t start = url.find_first_not_of("/");
         size_t end = url.rfind("/");
         
-        if(start!=std::string::npos && end!=std::string::npos){
+        if (start!=std::string::npos && end!=std::string::npos) {
             sensor_name = url.substr(start, end-1);
             sensor_type = url.substr(end+1);
         }
@@ -617,7 +618,6 @@ struct display_controller : public Mongoose::WebController {
         CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_data.eof()) {
-            response << header << std::endl;
             std::string last_sensor_data = sensor_data.fieldValue(0);
 
             if (sensor_type == "Temperature" || sensor_type == "Humidity") {
@@ -647,8 +647,7 @@ struct display_controller : public Mongoose::WebController {
 
                     while (!sensor_time.eof()) {
                         last_sensor_time = sensor_time.fieldValue(0);
-                        response << "\"" << last_sensor_time << "\""
-                                 << ",";
+                        response << "\"" << last_sensor_time << "\"" << ",";
                         sensor_time.nextRow();
                     }
 
@@ -680,9 +679,8 @@ struct display_controller : public Mongoose::WebController {
                         sensor_data.nextRow();
                     }
 
-                    response << "]}]});});"
-                             << "</script>" << std::endl
-                             << "<div id=\"" << sensor_name << sensor_type << i << "\" style=\"width: 680px; height: 240px\"></div>" << std::endl;
+                    response << "]}]});});" << "</script>" << "<div id=\"" << sensor_name << sensor_type 
+                             << i << "\" style=\"width: 680px; height: 240px\"></div>" << std::endl;
                 }
 
                 response << "</div></div>" << std::endl;
@@ -695,7 +693,6 @@ struct display_controller : public Mongoose::WebController {
                 int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
                 response << "<li>Number of Values : " << nbValue << "</li></ul></div></div>" << std::endl;
             }
-            response << "</body></html>" << std::endl;
         }
     }
 
@@ -704,7 +701,7 @@ struct display_controller : public Mongoose::WebController {
         std::string url = request.getUrl();
         size_t start = url.find_first_not_of("/");
         
-        if(start!=std::string::npos){
+        if (start != std::string::npos) {
             actuator_name = url.substr(start);
         }
 
@@ -719,8 +716,8 @@ struct display_controller : public Mongoose::WebController {
             std::string last_actuator_data = actuator_data.fieldValue(0);
 
             response << "<div class=\"hideable " << actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : "
-                     << actuator_name << "</li></ul>" << std::endl
-                     << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
+                     << actuator_name << "</li></ul>" << std::endl;
+            response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
 
             int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
             response << "<li>Number of Inputs : " << nbClicks << "</li></ul></div></div></body></html>" << std::endl;
@@ -763,14 +760,14 @@ struct display_controller : public Mongoose::WebController {
 
 } //end of anonymous namespace
 
-int main(){
+int main() {
 #ifdef __RPI__
     //Run the wiringPi setup (as root)
     wiringPiSetup();
 #endif
 
     //Drop root privileges and run as pi:pi again
-    if(!revoke_root()){
+    if (!revoke_root()) {
        std::cout << "asgard: unable to revoke root privileges, exiting..." << std::endl;
        return 1;
     }
