@@ -523,6 +523,47 @@ struct display_controller : public Mongoose::WebController {
             last_sensor_type = sensor_name.fieldValue(1);
 
             std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
+<<<<<<< HEAD
+=======
+            last_sensor_type[0] = toupper(last_sensor_type[0]);
+
+            CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", last_sensor_pk);
+
+            if (!sensor_data.eof()) {
+                std::string last_sensor_data = sensor_data.fieldValue(0);
+
+                if (last_sensor_type == "Temperature" || last_sensor_type == "Humidity") {
+                    response << "<div class=\"hideable " << last_sensor_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Sensor name : "
+                             << last_sensor_name << " (" << last_sensor_type << ")</li>" << std::endl;
+                    for (size_t i = 0; i < interval.size(); ++i) {
+                        response << "<li class=\"myTabs\"><a href=\"#" << last_sensor_name << last_sensor_type << i
+                                 << "\" data-toggle=\"tab\">" << interval[i] << "h</a></li>" << std::endl;
+                    }
+
+                    response << "</ul>" << std::endl;
+                    if (last_sensor_type == "Temperature") {
+                        response << "<ul><li>Current Temperature : " << last_sensor_data << "°C</li></ul>" << std::endl;
+                    } else if (last_sensor_type == "Humidity") {
+                        response << "<ul><li>Current Air Humidity : " << last_sensor_data << "%</li></ul>" << std::endl;
+                    }
+
+                    for (size_t i = 0; i < interval.size(); ++i) {
+                        response << "<script> $(function(){ $('#" << last_sensor_name << last_sensor_type << i
+                                 << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
+
+                        CppSQLite3Query sensor_time = db_exec_query("select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], last_sensor_pk);
+
+                        std::string last_sensor_time;
+                        while (!sensor_time.eof()) {
+                            last_sensor_time = sensor_time.fieldValue(0);
+                            response << "\"" << last_sensor_time << "\""
+                                     << ",";
+                            sensor_time.nextRow();
+                        }
+
+                        response << "], labels: {enabled: false}}, subtitle: {text: '" << last_sensor_name << " - last " << interval[i] << " hours from " << last_sensor_time
+                                 << "', verticalAlign: 'bottom', y: -5}, yAxis: {min: 0, title: {text: '" << last_sensor_type;
+>>>>>>> upstream/master
 
             response << "<div id=\"" << last_sensor_name << "_" << last_sensor_type << "\"></div>" << std::endl;
             response << "<script> $(function() {" << std::endl;
