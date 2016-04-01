@@ -457,7 +457,7 @@ $( function() {
         chart.reflow();
     });
 });
-function load(name) {
+function load_menu(name) {
     $('.hideable').hide();
     $('.' + name).show();
 }
@@ -468,7 +468,7 @@ function load(name) {
 
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
-        response << "<ul class=\"menu\"><li onclick=\"load('hideable')\">Show All</li></ul>" << std::endl;
+        response << "<ul class=\"menu\"><li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl;
         response << "<p>Drivers registered :</p>" << std::endl;
         response << "<ul class=\"menu\">" << std::endl;
 
@@ -487,10 +487,9 @@ struct display_controller : public Mongoose::WebController {
 
         CppSQLite3Query sensor_name = db.execQuery("select distinct name from sensor order by name;");
 
-
         while (!sensor_name.eof()) {
             std::string last_sensor_name = sensor_name.fieldValue(0);
-            response << "<li onclick=\"load('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
+            response << "<li onclick=\"load_menu('" << last_sensor_name << "')\">" << last_sensor_name << "</li>" << std::endl;
             sensor_name.nextRow();
         }
 
@@ -502,7 +501,7 @@ struct display_controller : public Mongoose::WebController {
 
         while (!actuator_name.eof()) {
             std::string last_actuator_name = actuator_name.fieldValue(0);
-            response << "<li onclick=\"load('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
+            response << "<li onclick=\"load_menu('" << last_actuator_name << "')\">" << last_actuator_name << "</li>" << std::endl;
             actuator_name.nextRow();
         }
 
@@ -525,23 +524,33 @@ struct display_controller : public Mongoose::WebController {
 
             std::transform(last_sensor_type.begin(), last_sensor_type.end(), last_sensor_type.begin(), ::tolower);
 
-            response << "<div class=\"hideable " << last_sensor_name << "\"></div>" << std::endl;
             response << "<div id=\"" << last_sensor_name << "_" << last_sensor_type << "\"></div>" << std::endl;
-            response << "<script> $(\"#" << last_sensor_name << "_" << last_sensor_type << "\").load(\"/" << last_sensor_name 
-                     << "/" << last_sensor_type << "\");</script>" << std::endl;
+            response << "<script> $(function() {" << std::endl;
+            response << "$(\"#" << last_sensor_name << "_" << last_sensor_type << "\").load(\"/" << last_sensor_name 
+                     << "/" << last_sensor_type << "\");" << std::endl;
+            response << "setInterval(function() {" << std::endl;
+            response << "$(\"#" << last_sensor_name << "_" << last_sensor_type << "\").load(\"/" << last_sensor_name 
+                     << "/" << last_sensor_type << "\");" << std::endl;
+            response << "}, 20000000);" << std::endl;
+            response << "})</script>" << std::endl;
 
             sensor_name.nextRow();
         }
     }
 
     void display_actuators(Mongoose::StreamResponse& response) {
-        CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
+        CppSQLite3Query actuator_name = db.execQuery("select distinct name from actuator order by name;");
 
         while (!actuator_name.eof()) {
             std::string last_actuator_name = actuator_name.fieldValue(0);
 
-            response << "<div class=\"hideable " << last_actuator_name << "\"></div>" << std::endl;
-            response << "<script> $(\"." << last_actuator_name << "\").load(\"/" << last_actuator_name << "\");</script>" << std::endl;
+            response << "<div id=\"" << last_actuator_name << "\"></div>" << std::endl;
+            response << "<script> $(function() {" << std::endl;
+            response << "$(\"#" << last_actuator_name << "\").load(\"/" << last_actuator_name << "\");" << std::endl;
+            response << "setInterval(function() {" << std::endl;
+            response << "$(\"#" << last_actuator_name << "\").load(\"/" << last_actuator_name << "\");" << std::endl;
+            response << "}, 20000000);" << std::endl;
+            response << "})</script>" << std::endl;
 
             actuator_name.nextRow();
         }
@@ -618,6 +627,7 @@ struct display_controller : public Mongoose::WebController {
         CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_data.eof()) {
+            response << header << std::endl;
             std::string last_sensor_data = sensor_data.fieldValue(0);
 
             if (sensor_type == "Temperature" || sensor_type == "Humidity") {
@@ -693,6 +703,7 @@ struct display_controller : public Mongoose::WebController {
                 int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
                 response << "<li>Number of Values : " << nbValue << "</li></ul></div></div>" << std::endl;
             }
+            response << "</body></html>" << std::endl;
         }
     }
 
@@ -720,7 +731,9 @@ struct display_controller : public Mongoose::WebController {
             response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
 
             int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
-            response << "<li>Number of Inputs : " << nbClicks << "</li></ul></div></div></body></html>" << std::endl;
+            response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl;
+            response << "</div></div>" << std::endl;
+            response << "</body></html>" << std::endl;
         }
     }
 
