@@ -535,10 +535,15 @@ struct display_controller : public Mongoose::WebController {
                      << "$.getScript(\"" << url_script << "\");"
                      << "});" << std::endl
 
-                     //response << "setInterval(function() {" << std::endl;
-                     //response << "$(\"#" << last_sensor_name << "_" << last_sensor_type << "\").load(\"/" << last_sensor_name
-                     //<< "/" << last_sensor_type << "\");" << std::endl;
-                     //response << "}, 20000000);" << std::endl;
+                     << "setInterval(function() {" << std::endl
+
+                     << "$(\"#" << last_sensor_name << "_" << last_sensor_type << "\").load(\"/" << url_data << "\", function(){"
+                     << "$.ajaxSetup({ cache: false });"
+                     << "$.getScript(\"" << url_script << "\");"
+                     << "});" << std::endl
+
+                     << "}, 10000);" << std::endl
+
                      << "})</script>" << std::endl;
 
             sensor_name.nextRow();
@@ -749,6 +754,8 @@ struct display_controller : public Mongoose::WebController {
         }
     }
 
+    //TODO Split actuator_data into data/script like sensor
+
     void actuator_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
         std::string actuator_name;
         std::string url = request.getUrl();
@@ -764,8 +771,6 @@ struct display_controller : public Mongoose::WebController {
 
         if (!actuator_data.eof()) {
             std::string last_actuator_data = actuator_data.fieldValue(0);
-
-            //TODO Why do we need tabs here ?
 
             response << "<div class=\"hideable " << actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : "
                      << actuator_name << "</li></ul>" << std::endl;
