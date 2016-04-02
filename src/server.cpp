@@ -745,7 +745,7 @@ struct display_controller : public Mongoose::WebController {
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
 
         try {
-            CppSQLite3Query sensor_name = db.execQuery("select distinct name, type from sensor order by name;");
+            CppSQLite3Query sensor_name = db.execQuery("select name, type from sensor order by name;");
 
             while (!sensor_name.eof()) {
                 std::string last_sensor_name = sensor_name.fieldValue(0);
@@ -756,7 +756,7 @@ struct display_controller : public Mongoose::WebController {
                 sensor_name.nextRow();
             }
 
-            CppSQLite3Query actuator_name = db.execQuery("select distinct name from actuator order by name;");
+            CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
 
             while (!actuator_name.eof()) {
                 std::string last_actuator_name = actuator_name.fieldValue(0);
