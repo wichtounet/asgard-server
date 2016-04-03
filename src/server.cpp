@@ -468,9 +468,9 @@ function load_menu(name) {
 
 struct display_controller : public Mongoose::WebController {
     void display_menu(Mongoose::StreamResponse& response) {
-        response << "<ul class=\"menu\"><li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl;
-        response << "<p>Drivers registered :</p>" << std::endl;
-        response << "<ul class=\"menu\">" << std::endl;
+        response << "<ul class=\"menu\"><li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
+                 << "<p>Drivers registered :</p>" << std::endl
+                 << "<ul class=\"menu\">" << std::endl;
 
         CppSQLite3Query source_name = db.execQuery("select name, pk_source from source order by name;");
 
@@ -481,9 +481,9 @@ struct display_controller : public Mongoose::WebController {
             source_name.nextRow();
         }
 
-        response << "</ul>" << std::endl;
-        response << "<p>Sensors active :</p>" << std::endl;
-        response << "<ul class=\"menu\">" << std::endl;
+        response << "</ul>" << std::endl
+                 << "<p>Sensors active :</p>" << std::endl
+                 << "<ul class=\"menu\">" << std::endl;
 
         CppSQLite3Query sensor_name = db.execQuery("select distinct name from sensor order by name;");
 
@@ -493,9 +493,9 @@ struct display_controller : public Mongoose::WebController {
             sensor_name.nextRow();
         }
 
-        response << "</ul>" << std::endl;
-        response << "<p>Actuators active :</p>" << std::endl;
-        response << "<ul class=\"menu\">" << std::endl;
+        response << "</ul>" << std::endl
+                 << "<p>Actuators active :</p>" << std::endl
+                 << "<ul class=\"menu\">" << std::endl;
 
         CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
 
@@ -505,12 +505,12 @@ struct display_controller : public Mongoose::WebController {
             actuator_name.nextRow();
         }
 
-        response << "</ul></div>" << std::endl;
-        response << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul>" << std::endl;
-        response << "<ul class=\"led\"><li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>" << std::endl;
-        response << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul>" << std::endl;
-        response << "</div></div>" << std::endl;
-        response << "<div id=\"main\">" << std::endl;
+        response << "</ul></div>" << std::endl
+                 << "<div class=\"tabs\" style=\"width: 240px;\"><ul><li class=\"title\">Onboard LED</li></ul>" << std::endl
+                 << "<ul class=\"led\"><li class=\"button\" onclick=\"location.href='/led_on'\">ON</li>" << std::endl
+                 << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul>" << std::endl
+                 << "</div></div>" << std::endl
+                 << "<div id=\"main\">" << std::endl;
     }
 
     void display_sensors(Mongoose::StreamResponse& response) {
@@ -788,12 +788,12 @@ struct display_controller : public Mongoose::WebController {
             auto div_id = actuator_name;
 
             response << "<div class=\"hideable " << actuator_name << "\"><div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Actuator name : "
-                     << actuator_name << "</li></ul>" << std::endl;
-            response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
+                     << actuator_name << "</li></ul>" << std::endl
+                     << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
 
             int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
-            response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl;
-            response << "</div></div>" << std::endl;
+            response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl
+                     << "</div></div>" << std::endl;
         }
     }
 
