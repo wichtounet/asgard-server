@@ -551,28 +551,43 @@ struct display_controller : public Mongoose::WebController {
     }
 
     void display_actuators(Mongoose::StreamResponse& response) {
-        CppSQLite3Query actuator_name = db.execQuery("select distinct name from actuator order by name;");
+        CppSQLite3Query actuator_query = db.execQuery("select distinct name from actuator order by name;");
 
-        while (!actuator_name.eof()) {
-            std::string last_actuator_name = actuator_name.fieldValue(0);
+        while (!actuator_query.eof()) {
+            std::string actuator_name = actuator_query.fieldValue(0);
 
-            response << "<div id=\"" << last_actuator_name << "\"></div>" << std::endl;
-            response << "<script> $(function() {" << std::endl;
-            response << "$(\"#" << last_actuator_name << "\").load(\"/" << last_actuator_name << "\");" << std::endl;
-            response << "setInterval(function() {" << std::endl;
-            response << "$(\"#" << last_actuator_name << "\").load(\"/" << last_actuator_name << "\");" << std::endl;
-            response << "}, 20000000);" << std::endl;
-            response << "})</script>" << std::endl;
+            std::string url_data   = actuator_name + "/data";
+            std::string url_script = actuator_name + "/script";
 
-            actuator_name.nextRow();
+            response << "<div id=\"" << actuator_name << "\"></div>" << std::endl
+                     << "<script> $(function() {" << std::endl
+
+                     << "$(\"#" << actuator_name << "\").load(\"/" << url_data << "\", function(){"
+                     << "$.ajaxSetup({ cache: false });"
+                     << "$.getScript(\"" << url_script << "\");"
+                     << "});" << std::endl
+
+                     << "setInterval(function() {" << std::endl
+
+                     << "$(\"#" << actuator_name << "\").load(\"/" << url_data << "\", function(){"
+                     << "$.ajaxSetup({ cache: false });"
+                     << "$.getScript(\"" << url_script << "\");"
+                     << "});" << std::endl
+
+                     << "}, 10000);" << std::endl
+
+                     << "})</script>" << std::endl;
+
+            actuator_query.nextRow();
         }
     }
 
     void display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-        response << header << std::endl;
-        response << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl;
-        response << "<div id=\"container\"><div id=\"sidebar\"><div class=\"tabs\" style=\"width: 240px;\">"<< std::endl;
-        response << "<ul><li class=\"title\">Current information</li></ul>" << std::endl;
+        response << header << std::endl
+                 << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
+                 << "<div id=\"container\"><div id=\"sidebar\"><div class=\"tabs\" style=\"width: 240px;\">" << std::endl
+                 << "<ul><li class=\"title\">Current information</li></ul>" << std::endl;
+
         try {
             response << "<script>function load_source(pk) {" << std::endl;
             response << "$('.hideable').hide();" << std::endl;
@@ -603,8 +618,9 @@ struct display_controller : public Mongoose::WebController {
         } catch (CppSQLite3Exception& e) {
             std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
         }
-        response << "</div></div>" << std::endl;
-        response << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+
+        response << "</div></div>" << std::endl
+                 << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
     }
 
     void led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
@@ -754,31 +770,49 @@ struct display_controller : public Mongoose::WebController {
         }
     }
 
-    //TODO Split actuator_data into data/script like sensor
-
     void actuator_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-        std::string actuator_name;
         std::string url = request.getUrl();
-        size_t start = url.find_first_not_of("/");
 
-        if (start != std::string::npos) {
-            actuator_name = url.substr(start);
-        }
+        auto start = url.find_first_not_of("/");
+        auto end = url.find("/", start + 1);
+
+        std::string actuator_name(url.begin() + start, url.begin() + end);
 
         int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
 
-        CppSQLite3Query actuator_data = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+        CppSQLite3Query actuator_query = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
-        if (!actuator_data.eof()) {
-            std::string last_actuator_data = actuator_data.fieldValue(0);
+        if (!actuator_query.eof()) {
+            std::string last_actuator_data = actuator_query.fieldValue(0);
 
-            response << "<div class=\"hideable " << actuator_name << "\"><div class=\"tabs\"><ul><li class=\"title\">Actuator name : "
+            auto div_id = actuator_name;
+
+            response << "<div class=\"hideable " << actuator_name << "\"><div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Actuator name : "
                      << actuator_name << "</li></ul>" << std::endl;
             response << "<ul><li>Last Input : " << last_actuator_data << "</li>" << std::endl;
 
             int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
             response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl;
             response << "</div></div>" << std::endl;
+        }
+    }
+
+    void actuator_script(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+        std::string url = request.getUrl();
+
+        auto start = url.find_first_not_of("/");
+        auto end = url.find("/", start + 1);
+
+        std::string actuator_name(url.begin() + start, url.begin() + end);
+
+        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
+
+        CppSQLite3Query actuator_query = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+
+        if (!actuator_query.eof()) {
+            auto div_id = actuator_name;
+
+            response << "$('#" << div_id  << "').tabs();" << std::endl;
         }
     }
 
@@ -808,13 +842,15 @@ struct display_controller : public Mongoose::WebController {
                 sensor_query.nextRow();
             }
 
-            CppSQLite3Query actuator_name = db.execQuery("select name from actuator order by name;");
+            CppSQLite3Query actuator_query = db.execQuery("select name from actuator order by name;");
 
-            while (!actuator_name.eof()) {
-                std::string last_actuator_name = actuator_name.fieldValue(0);
-                std::string url = "/" +last_actuator_name;
-                addRoute<display_controller>("GET", url, &display_controller::actuator_data);
-                actuator_name.nextRow();
+            while (!actuator_query.eof()) {
+                std::string url = std::string("/") + actuator_query.fieldValue(0);
+
+                addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
+                addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+
+                actuator_query.nextRow();
             }
 
         } catch (CppSQLite3Exception& e){
