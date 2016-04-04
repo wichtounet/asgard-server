@@ -559,17 +559,17 @@ struct display_controller : public Mongoose::WebController {
             std::string url_data   = actuator_name + "/data";
             std::string url_script = actuator_name + "/script";
 
-            response << "<div id=\"" << actuator_name << "\"></div>" << std::endl
+            response << "<div id=\"" << actuator_name << "_script\"></div>" << std::endl
                      << "<script> $(function() {" << std::endl
 
-                     << "$(\"#" << actuator_name << "\").load(\"/" << url_data << "\", function(){"
+                     << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
                      << "$.ajaxSetup({ cache: false });"
                      << "$.getScript(\"" << url_script << "\");"
                      << "});" << std::endl
 
                      << "setInterval(function() {" << std::endl
 
-                     << "$(\"#" << actuator_name << "\").load(\"/" << url_data << "\", function(){"
+                     << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
                      << "$.ajaxSetup({ cache: false });"
                      << "$.getScript(\"" << url_script << "\");"
                      << "});" << std::endl
@@ -685,8 +685,9 @@ struct display_controller : public Mongoose::WebController {
                          << "<ul><li>Last Value : " << last_sensor_data << "</li>" << std::endl;
 
                 int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
-                response << "<li>Number of Values : " << nbValue << "</li></ul></div></div>" << std::endl;
+                response << "<li>Number of Values : " << nbValue << "</li></ul>" << std::endl;
             }
+             response << "</div></div>" << std::endl;
         }
     }
 
