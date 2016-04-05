@@ -476,7 +476,7 @@ struct display_controller : public Mongoose::WebController {
 
         while (!source_query.eof()) {
             std::string source_name = source_query.fieldValue(0);
-            std::string source_pk = source_query.fieldValue(1);
+            int source_pk = source_query.getIntField(1);
             response << "<li onclick=\"load_source('" << source_pk << "')\">" << source_name << "</li>" << std::endl;
             source_query.nextRow();
         }
@@ -489,7 +489,7 @@ struct display_controller : public Mongoose::WebController {
 
         while (!sensor_query.eof()) {
             std::string sensor_name = sensor_query.fieldValue(0);
-            response << "<li onclick=\"load_menu('" << sensor_name << "')\">" << sensor_name << "</li>" << std::endl;
+            response << "<li onclick=\"load_menu(" << sensor_name << ")\">" << sensor_name << "</li>" << std::endl;
             sensor_query.nextRow();
         }
 
@@ -514,69 +514,77 @@ struct display_controller : public Mongoose::WebController {
     }
 
     void display_sensors(Mongoose::StreamResponse& response) {
-        CppSQLite3Query sensor_query = db.execQuery("select name, type from sensor order by name;");
-        std::string sensor_name;
-        std::string sensor_type;
+        CppSQLite3Query sensor_query = db.execQuery("select name, type, pk_sensor from sensor order by name;");
 
         while (!sensor_query.eof()) {
-            sensor_name = sensor_query.fieldValue(0);
-            sensor_type = sensor_query.fieldValue(1);
+            std::string sensor_name = sensor_query.fieldValue(0);
+            std::string sensor_type = sensor_query.fieldValue(1);
+            int sensor_pk = sensor_query.getIntField(2);
 
-            std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
+            CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
-            std::string url_data   = sensor_name + "/" + sensor_type + "/data";
-            std::string url_script = sensor_name + "/" + sensor_type + "/script";
+            if (!sensor_data.eof()) {
+                std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
 
-            response << "<div id=\"" << sensor_name << "_" << sensor_type << "\" class=\"hideable " << sensor_name << "\"></div>" << std::endl
-                     << "<script> $(function() {" << std::endl
+                std::string url_data   = sensor_name + "/" + sensor_type + "/data";
+                std::string url_script = sensor_name + "/" + sensor_type + "/script";
 
-                     << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
-                     << "$.ajaxSetup({ cache: false });"
-                     << "$.getScript(\"" << url_script << "\");"
-                     << "});" << std::endl
+                response << "<div id=\"" << sensor_name << "_" << sensor_type << "\" class=\"hideable " << sensor_name << "\"></div>" << std::endl
+                         << "<script> $(function() {" << std::endl
 
-                     << "setInterval(function() {" << std::endl
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
+                         << "$.ajaxSetup({ cache: false });"
+                         << "$.getScript(\"" << url_script << "\");"
+                         << "});" << std::endl
 
-                     << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
-                     << "$.ajaxSetup({ cache: false });"
-                     << "$.getScript(\"" << url_script << "\");"
-                     << "});" << std::endl
+                         << "setInterval(function() {" << std::endl
 
-                     << "}, 10000);" << std::endl
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
+                         << "$.ajaxSetup({ cache: false });"
+                         << "$.getScript(\"" << url_script << "\");"
+                         << "});" << std::endl
 
-                     << "})</script>" << std::endl;
+                         << "}, 10000);" << std::endl
+
+                         << "})</script>" << std::endl;
+            }
 
             sensor_query.nextRow();
         }
     }
 
     void display_actuators(Mongoose::StreamResponse& response) {
-        CppSQLite3Query actuator_query = db.execQuery("select distinct name from actuator order by name;");
+        CppSQLite3Query actuator_query = db.execQuery("select name, pk_actuator from actuator order by name;");
 
         while (!actuator_query.eof()) {
             std::string actuator_name = actuator_query.fieldValue(0);
+            int actuator_pk = actuator_query.getIntField(1);
 
-            std::string url_data   = actuator_name + "/data";
-            std::string url_script = actuator_name + "/script";
+            CppSQLite3Query actuator_data = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
-            response << "<div id=\"" << actuator_name << "_script\" class=\"hideable " << actuator_name << "\"></div>" << std::endl
-                     << "<script> $(function() {" << std::endl
+            if (!actuator_data.eof()) {
+                std::string url_data   = actuator_name + "/data";
+                std::string url_script = actuator_name + "/script";
 
-                     << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
-                     << "$.ajaxSetup({ cache: false });"
-                     << "$.getScript(\"" << url_script << "\");"
-                     << "});" << std::endl
+                response << "<div id=\"" << actuator_name << "_script\" class=\"hideable " << actuator_name << "\"></div>" << std::endl
+                         << "<script> $(function() {" << std::endl
 
-                     << "setInterval(function() {" << std::endl
+                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
+                         << "$.ajaxSetup({ cache: false });"
+                         << "$.getScript(\"" << url_script << "\");"
+                         << "});" << std::endl
 
-                     << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
-                     << "$.ajaxSetup({ cache: false });"
-                     << "$.getScript(\"" << url_script << "\");"
-                     << "});" << std::endl
+                         << "setInterval(function() {" << std::endl
 
-                     << "}, 10000);" << std::endl
+                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
+                         << "$.ajaxSetup({ cache: false });"
+                         << "$.getScript(\"" << url_script << "\");"
+                         << "});" << std::endl
 
-                     << "})</script>" << std::endl;
+                         << "}, 10000);" << std::endl
+
+                         << "})</script>" << std::endl;
+            }
 
             actuator_query.nextRow();
         }
@@ -765,6 +773,7 @@ struct display_controller : public Mongoose::WebController {
 
                     response << "]}]});" << std::endl;
                 }
+
             } else {
                 response << "$('#" << div_id  << "').tabs();" << std::endl;
             }
@@ -828,28 +837,38 @@ struct display_controller : public Mongoose::WebController {
         //Otherwise the new sensors will not show unless we restart the server
 
         try {
-            CppSQLite3Query sensor_query = db.execQuery("select name, type from sensor order by name;");
+            CppSQLite3Query sensor_query = db.execQuery("select name, type, pk_sensor from sensor order by name;");
 
             while (!sensor_query.eof()) {
                 std::string sensor_name = sensor_query.fieldValue(0);
                 std::string sensor_type = sensor_query.fieldValue(1);
+                int sensor_pk = sensor_query.getIntField(2);
 
-                std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
+                CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
-                std::string url = "/" + sensor_name + "/" + sensor_type;
-                addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
-                addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
+                if (!sensor_data.eof()) {
+                    std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
+
+                    std::string url = "/" + sensor_name + "/" + sensor_type;
+                    addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
+                    addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
+                }
 
                 sensor_query.nextRow();
             }
 
-            CppSQLite3Query actuator_query = db.execQuery("select name from actuator order by name;");
+            CppSQLite3Query actuator_query = db.execQuery("select name, pk_actuator from actuator order by name;");
 
             while (!actuator_query.eof()) {
                 std::string url = std::string("/") + actuator_query.fieldValue(0);
+                int actuator_pk = actuator_query.getIntField(1);
 
-                addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
-                addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+                CppSQLite3Query actuator_data = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+
+                if (!actuator_data.eof()) {
+                    addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
+                    addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+                }
 
                 actuator_query.nextRow();
             }
