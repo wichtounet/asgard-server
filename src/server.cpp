@@ -527,7 +527,7 @@ struct display_controller : public Mongoose::WebController {
             std::string url_data   = sensor_name + "/" + sensor_type + "/data";
             std::string url_script = sensor_name + "/" + sensor_type + "/script";
 
-            response << "<div id=\"" << sensor_name << "_" << sensor_type << "\"></div>" << std::endl
+            response << "<div id=\"" << sensor_name << "_" << sensor_type << "\" class=\"hideable " << sensor_name << "\"></div>" << std::endl
                      << "<script> $(function() {" << std::endl
 
                      << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
@@ -541,8 +541,6 @@ struct display_controller : public Mongoose::WebController {
                      << "$.ajaxSetup({ cache: false });"
                      << "$.getScript(\"" << url_script << "\");"
                      << "});" << std::endl
-
-                     << "load_menu('" << sensor_name << "');" << std::endl
 
                      << "}, 10000);" << std::endl
 
@@ -561,7 +559,7 @@ struct display_controller : public Mongoose::WebController {
             std::string url_data   = actuator_name + "/data";
             std::string url_script = actuator_name + "/script";
 
-            response << "<div id=\"" << actuator_name << "_script\"></div>" << std::endl
+            response << "<div id=\"" << actuator_name << "_script\" class=\"hideable " << actuator_name << "\"></div>" << std::endl
                      << "<script> $(function() {" << std::endl
 
                      << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
@@ -575,8 +573,6 @@ struct display_controller : public Mongoose::WebController {
                      << "$.ajaxSetup({ cache: false });"
                      << "$.getScript(\"" << url_script << "\");"
                      << "});" << std::endl
-
-                     << "load_menu('" << actuator_name << "');" << std::endl
 
                      << "}, 10000);" << std::endl
 
@@ -664,7 +660,7 @@ struct display_controller : public Mongoose::WebController {
             auto div_id = sensor_name + sensor_type;
 
             if (sensor_type == "Temperature" || sensor_type == "Humidity") {
-                response << "<div class=\"hideable " << sensor_name << "\"><div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Sensor name : "
+                response << "<div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Sensor name : "
                          << sensor_name << " (" << sensor_type << ")</li>" << std::endl;
 
                 for (size_t i = 0; i < interval.size(); ++i) {
@@ -684,14 +680,14 @@ struct display_controller : public Mongoose::WebController {
                     response << "<div id=\"" << div_id << i << "\" style=\"width: 680px; height: 240px\"></div>" << std::endl;
                 }
             } else {
-                response << "<div class=\"hideable " << sensor_name << "\"><div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Sensor name : "
+                response << "<div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Sensor name : "
                          << sensor_name << " (" << sensor_type << ")</li></ul>"
                          << "<ul><li>Last Value : " << sensor_data << "</li>" << std::endl;
 
                 int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
                 response << "<li>Number of Values : " << nbValue << "</li></ul>" << std::endl;
             }
-            response << "</div></div>" << std::endl;
+            response << "</div>" << std::endl;
         }
     }
 
@@ -792,13 +788,13 @@ struct display_controller : public Mongoose::WebController {
 
             auto div_id = actuator_name;
 
-            response << "<div class=\"hideable " << actuator_name << "\"><div id=\"" << div_id << "\" class=\"tabs\"><ul><li class=\"title\">Actuator name : "
-                     << actuator_name << "</li></ul>" << std::endl
+            response << "<div id=\"" << div_id << "\" class=\"tabs\"><ul>"
+                     << "<li class=\"title\">Actuator name : " << actuator_name << "</li></ul>" << std::endl
                      << "<ul><li>Last Input : " << actuator_data << "</li>" << std::endl;
 
             int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
             response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl
-                     << "</div></div>" << std::endl;
+                     << "</div>" << std::endl;
         }
     }
 
