@@ -449,7 +449,7 @@ border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1
 #footer{text-align: right; width: 1000px; margin-top: 30px; margin-bottom: 30px; font-size: 14px;}
 </style>
 <script>
-$( function() {
+$(function() {
     $(".tabs").tabs();
     $('a[data-toggle="tab"]').on('click', function (e) {
         var selector = $(this.getAttribute("href"));
@@ -489,7 +489,7 @@ struct display_controller : public Mongoose::WebController {
 
         while (!sensor_query.eof()) {
             std::string sensor_name = sensor_query.fieldValue(0);
-            response << "<li onclick=\"load_menu(" << sensor_name << ")\">" << sensor_name << "</li>" << std::endl;
+            response << "<li onclick=\"load_menu('" << sensor_name << "')\">" << sensor_name << "</li>" << std::endl;
             sensor_query.nextRow();
         }
 
@@ -532,17 +532,19 @@ struct display_controller : public Mongoose::WebController {
                 response << "<div id=\"" << sensor_name << "_" << sensor_type << "\" class=\"hideable " << sensor_name << "\"></div>" << std::endl
                          << "<script> $(function() {" << std::endl
 
-                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
-                         << "$.ajaxSetup({ cache: false });"
-                         << "$.getScript(\"" << url_script << "\");"
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){" << std::endl
+                         << "$.ajaxSetup({ cache: false });" << std::endl
+                         << "$.getScript(\"" << url_script << "\");" << std::endl
                          << "});" << std::endl
 
                          << "setInterval(function() {" << std::endl
 
-                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){"
-                         << "$.ajaxSetup({ cache: false });"
-                         << "$.getScript(\"" << url_script << "\");"
-                         << "});" << std::endl
+                         << "if ($(\"#" << sensor_name << "_" << sensor_type << "\").is(\":visible\")){" << std::endl
+
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){" << std::endl
+                         << "$.ajaxSetup({ cache: false });" << std::endl
+                         << "$.getScript(\"" << url_script << "\");" << std::endl
+                         << "});}" << std::endl
 
                          << "}, 10000);" << std::endl
 
@@ -569,17 +571,19 @@ struct display_controller : public Mongoose::WebController {
                 response << "<div id=\"" << actuator_name << "_script\" class=\"hideable " << actuator_name << "\"></div>" << std::endl
                          << "<script> $(function() {" << std::endl
 
-                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
-                         << "$.ajaxSetup({ cache: false });"
-                         << "$.getScript(\"" << url_script << "\");"
+                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function() {" << std::endl
+                         << "$.ajaxSetup({ cache: false });" << std::endl
+                         << "$.getScript(\"" << url_script << "\");" << std::endl
                          << "});" << std::endl
 
                          << "setInterval(function() {" << std::endl
 
-                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function(){"
-                         << "$.ajaxSetup({ cache: false });"
-                         << "$.getScript(\"" << url_script << "\");"
-                         << "});" << std::endl
+                         << "if ($(\"#" << actuator_name << "_script\").is(\":visible\")){" << std::endl
+
+                         << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function() {" << std::endl
+                         << "$.ajaxSetup({ cache: false });" << std::endl
+                         << "$.getScript(\"" << url_script << "\");" << std::endl
+                         << "});}" << std::endl
 
                          << "}, 10000);" << std::endl
 
