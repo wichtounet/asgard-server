@@ -89,6 +89,9 @@ source_t& select_source(std::size_t source_id) {
 // Create the database object
 CppSQLite3DB db;
 
+// Create the controller handling the requests
+display_controller controller;
+
 void cleanup();
 
 template<typename... T>
@@ -193,10 +196,16 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
-        db_exec_dml(
+        if(db_exec_dml(
             "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
             "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");"
-            , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str());
+            , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str())) {
+
+            std::transform(sensor.type.begin(), sensor.type.end(), sensor.type.begin(), ::tolower);
+            std::string url = "/" + sensor.name + "/" + sensor.type;
+            addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
+            addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
+        }
 
         std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
     } else if (command == "UNREG_SENSOR") {
@@ -233,8 +242,13 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
-        db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
-                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str());
+        if(db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
+                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
+
+            std::string url = "/" + actuator.name;
+            addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
+            addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+        }
 
         std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
     } else if (command == "UNREG_ACTUATOR") {
@@ -899,9 +913,6 @@ int main() {
 
     // Open (connect) the database
     db_create();
-
-    // Create the controller handling the requests
-    display_controller controller;
 
     // Run the server with our controller
     Mongoose::Server server(8080);
