@@ -89,20 +89,17 @@ source_t& select_source(std::size_t source_id) {
 // Create the database object
 CppSQLite3DB db;
 
-// Create the controller handling the requests
-display_controller controller;
-
-void cleanup();
-
 template<typename... T>
-void db_exec_dml(const std::string& query, T... args){
+int db_exec_dml(const std::string& query, T... args){
     try {
         CppSQLite3Buffer buffSQL;
         buffSQL.format(query.c_str(), args...);
-        db.execDML(buffSQL);
+        return db.execDML(buffSQL);
     } catch (CppSQLite3Exception& e) {
         std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
     }
+
+    return 0;
 }
 
 template<typename... T>
@@ -131,255 +128,6 @@ CppSQLite3Query db_exec_query(const std::string& query, T... args){
     return {};
 }
 
-void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length) {
-    std::stringstream message_ss(message);
-
-    std::string command;
-    message_ss >> command;
-
-    if (command == "REG_SOURCE") {
-        sources.emplace_back();
-
-        auto& source             = sources.back();
-        source.id                = current_source++;
-        source.sensors_counter   = 0;
-        source.actuators_counter = 0;
-
-        message_ss >> source.name;
-
-        // Give the source id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", source.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
-            std::perror("asgard: server: failed to answer");
-            return;
-        }
-
-        try {
-            CppSQLite3Buffer buffSQL;
-            buffSQL.format("insert into source(name,fk_pi) select \"%s\", 1 where not exists(select 1 from source where name=\"%s\");",
-                           source.name.c_str(), source.name.c_str());
-            db.execDML(buffSQL);
-            buffSQL.format("select pk_source from source where name=\"%s\";", source.name.c_str());
-            source.id_sql = db.execScalar(buffSQL);
-        } catch (CppSQLite3Exception& e) {
-            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-        }
-
-        std::cout << "asgard: new source registered " << source.id << " : " << source.name << std::endl;
-    } else if (command == "UNREG_SOURCE") {
-        int source_id;
-        message_ss >> source_id;
-
-        sources.erase(std::remove_if(sources.begin(), sources.end(), [&](source_t& source) {
-                          return source.id == static_cast<std::size_t>(source_id);
-                      }), sources.end());
-
-        std::cout << "asgard: unregistered source " << source_id << std::endl;
-    } else if (command == "REG_SENSOR") {
-        int source_id;
-        message_ss >> source_id;
-
-        auto& source = select_source(source_id);
-
-        source.sensors.emplace_back();
-        auto& sensor = source.sensors.back();
-
-        message_ss >> sensor.type;
-        message_ss >> sensor.name;
-
-        sensor.id = source.sensors_counter++;
-
-        // Give the sensor id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", sensor.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
-            std::perror("asgard: server: failed to answer");
-            return;
-        }
-
-        if(db_exec_dml(
-            "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
-            "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");"
-            , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str())) {
-
-            std::transform(sensor.type.begin(), sensor.type.end(), sensor.type.begin(), ::tolower);
-            std::string url = "/" + sensor.name + "/" + sensor.type;
-            addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
-            addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
-        }
-
-        std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
-    } else if (command == "UNREG_SENSOR") {
-        int source_id;
-        message_ss >> source_id;
-
-        int sensor_id;
-        message_ss >> sensor_id;
-
-        auto& source = select_source(source_id);
-
-        source.sensors.erase(std::remove_if(source.sensors.begin(), source.sensors.end(), [&](sensor_t& sensor) {
-                                 return sensor.id == static_cast<std::size_t>(sensor_id);
-                             }), source.sensors.end());
-
-        std::cout << "asgard: sensor unregistered from source " << source_id << " : " << sensor_id << std::endl;
-    } else if (command == "REG_ACTUATOR") {
-        int source_id;
-        message_ss >> source_id;
-
-        auto& source = select_source(source_id);
-
-        source.actuators.emplace_back();
-        auto& actuator = source.actuators.back();
-
-        message_ss >> actuator.name;
-
-        actuator.id = source.actuators_counter++;
-
-        // Give the sensor id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", actuator.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
-            std::perror("asgard: server: failed to answer");
-            return;
-        }
-
-        if(db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
-                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
-
-            std::string url = "/" + actuator.name;
-            addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
-            addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
-        }
-
-        std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
-    } else if (command == "UNREG_ACTUATOR") {
-        int source_id;
-        message_ss >> source_id;
-
-        int actuator_id;
-        message_ss >> actuator_id;
-
-        auto& source = select_source(source_id);
-
-        source.actuators.erase(std::remove_if(source.actuators.begin(), source.actuators.end(), [&](actuator_t& actuator) {
-                                   return actuator.id == static_cast<std::size_t>(actuator_id);
-                               }), source.actuators.end());
-
-        std::cout << "asgard: actuator unregistered from source " << source_id << " : " << actuator_id << std::endl;
-    } else if (command == "DATA") {
-        int source_id;
-        message_ss >> source_id;
-
-        int sensor_id;
-        message_ss >> sensor_id;
-
-        std::string data;
-        message_ss >> data;
-
-        auto& source = select_source(source_id);
-        auto& sensor = source.sensors[sensor_id];
-
-        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
-
-        db_exec_dml("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
-
-        std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
-    } else if (command == "EVENT") {
-        int source_id;
-        message_ss >> source_id;
-
-        int actuator_id;
-        message_ss >> actuator_id;
-
-        std::string data;
-        message_ss >> data;
-
-        auto& source   = select_source(source_id);
-        auto& actuator = source.actuators[actuator_id];
-
-        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
-
-        db_exec_dml("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
-
-        std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
-    }
-}
-
-int run(){
-    // Create the socket
-    socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if(socket_fd < 0){
-        std::cerr << "socket() failed" << std::endl;
-        return 1;
-    }
-
-    // Init the server address
-    struct sockaddr_un server_address;
-    memset(&server_address, 0, sizeof(struct sockaddr_un));
-    server_address.sun_family = AF_UNIX;
-    snprintf(server_address.sun_path, UNIX_PATH_MAX, socket_path);
-
-    // Unlink the socket file
-    unlink(socket_path);
-
-    // Bind
-    if (::bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        std::cerr << "bind() failed" << std::endl;
-        close(socket_fd);
-        return 1;
-    }
-
-    std::cout << "asgard: Server started" << std::endl;
-
-    while (true) {
-        sockaddr_un client_address;
-        socklen_t address_length = sizeof(struct sockaddr_un);
-
-        // Wait for one message
-        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size-1, 0, (struct sockaddr *) &client_address, &address_length);
-        receive_buffer[bytes_received] = '\0';
-
-        // Handle the message
-        handle_command(receive_buffer, client_address, address_length);
-    }
-
-    cleanup();
-
-    return 0;
-}
-
-void db_table() {
-    db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
-    db.execDML(
-        "create table if not exists source(pk_source integer primary key autoincrement,"
-        "name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
-    db.execDML(
-        "create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
-        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML(
-        "create table if not exists actuator(pk_actuator integer primary key autoincrement,"
-        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML(
-        "create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20),"
-        "time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
-    db.execDML(
-        "create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20),"
-        "time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
-}
-
-void db_create() {
-    try {
-        db.open("asgard.db");
-
-        // Create tables
-        db_table();
-
-        // Perform pi insertion
-        db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-    } catch (CppSQLite3Exception& e) {
-        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
-}
-
 void set_led_off() {
 #ifdef __RPI__
     digitalWrite(gpio_led_pin, LOW);
@@ -390,44 +138,6 @@ void set_led_on() {
 #ifdef __RPI__
     digitalWrite(gpio_led_pin, HIGH);
 #endif
-}
-
-void init_led() {
-#ifdef __RPI__
-    pinMode(gpio_led_pin, OUTPUT);
-#endif
-}
-
-void cleanup() {
-    set_led_off();
-    close(socket_fd);
-    unlink("/tmp/asgard_socket");
-}
-
-void terminate(int /*signo*/) {
-    std::cout << "asgard: server: stopping the server" << std::endl;
-    cleanup();
-    abort();
-}
-
-bool revoke_root() {
-    if (getuid() == 0) {
-        if (setgid(1000) != 0) {
-            std::cout << "asgard: setgid: Unable to drop group privileges: " << strerror(errno) << std::endl;
-            return false;
-        }
-        if (setuid(1000) != 0) {
-            std::cout << "asgard: setgid: Unable to drop user privileges: " << strerror(errno) << std::endl;
-            return false;
-        }
-    }
-
-    if (setuid(0) != -1) {
-        std::cout << "asgard: managed to regain root privileges, exiting..." << std::endl;
-        return false;
-    }
-
-    return true;
 }
 
 std::string header = R"=====(
@@ -546,16 +256,16 @@ struct display_controller : public Mongoose::WebController {
                 response << "<div id=\"" << sensor_name << "_" << sensor_type << "\" class=\"hideable " << sensor_name << "\"></div>" << std::endl
                          << "<script> $(function() {" << std::endl
 
-                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){" << std::endl
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function() {" << std::endl
                          << "$.ajaxSetup({ cache: false });" << std::endl
                          << "$.getScript(\"" << url_script << "\");" << std::endl
                          << "});" << std::endl
 
                          << "setInterval(function() {" << std::endl
 
-                         << "if ($(\"#" << sensor_name << "_" << sensor_type << "\").is(\":visible\")){" << std::endl
+                         << "if ($(\"#" << sensor_name << "_" << sensor_type << "\").is(\":visible\")) {" << std::endl
 
-                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function(){" << std::endl
+                         << "$(\"#" << sensor_name << "_" << sensor_type << "\").load(\"/" << url_data << "\", function() {" << std::endl
                          << "$.ajaxSetup({ cache: false });" << std::endl
                          << "$.getScript(\"" << url_script << "\");" << std::endl
                          << "});}" << std::endl
@@ -592,7 +302,7 @@ struct display_controller : public Mongoose::WebController {
 
                          << "setInterval(function() {" << std::endl
 
-                         << "if ($(\"#" << actuator_name << "_script\").is(\":visible\")){" << std::endl
+                         << "if ($(\"#" << actuator_name << "_script\").is(\":visible\")) {" << std::endl
 
                          << "$(\"#" << actuator_name << "_script\").load(\"/" << url_data << "\", function() {" << std::endl
                          << "$.ajaxSetup({ cache: false });" << std::endl
@@ -792,6 +502,12 @@ struct display_controller : public Mongoose::WebController {
                     response << "]}]});" << std::endl;
                 }
 
+                response << "$('a[data-toggle=\"tab\"]').on('click', function (e) {" << std::endl
+                         << "var selector = $(this.getAttribute(\"href\"));" << std::endl
+                         << "var chart = $(selector).highcharts();" << std::endl
+                         << "chart.reflow();" << std::endl
+                         << "});" << std::endl;
+
             } else {
                 response << "$('#" << div_id  << "').tabs();" << std::endl;
             }
@@ -896,6 +612,299 @@ struct display_controller : public Mongoose::WebController {
         }
     }
 };
+
+// Create the controller handling the requests
+display_controller controller;
+
+void cleanup();
+
+void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length) {
+    std::stringstream message_ss(message);
+
+    std::string command;
+    message_ss >> command;
+
+    if (command == "REG_SOURCE") {
+        sources.emplace_back();
+
+        auto& source             = sources.back();
+        source.id                = current_source++;
+        source.sensors_counter   = 0;
+        source.actuators_counter = 0;
+
+        message_ss >> source.name;
+
+        // Give the source id back to the client
+        auto nbytes = snprintf(write_buffer, 4096, "%d", source.id);
+        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+            std::perror("asgard: server: failed to answer");
+            return;
+        }
+
+        try {
+            CppSQLite3Buffer buffSQL;
+            buffSQL.format("insert into source(name,fk_pi) select \"%s\", 1 where not exists(select 1 from source where name=\"%s\");",
+                           source.name.c_str(), source.name.c_str());
+            db.execDML(buffSQL);
+            buffSQL.format("select pk_source from source where name=\"%s\";", source.name.c_str());
+            source.id_sql = db.execScalar(buffSQL);
+        } catch (CppSQLite3Exception& e) {
+            std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        }
+
+        std::cout << "asgard: new source registered " << source.id << " : " << source.name << std::endl;
+    } else if (command == "UNREG_SOURCE") {
+        int source_id;
+        message_ss >> source_id;
+
+        sources.erase(std::remove_if(sources.begin(), sources.end(), [&](source_t& source) {
+                          return source.id == static_cast<std::size_t>(source_id);
+                      }), sources.end());
+
+        std::cout << "asgard: unregistered source " << source_id << std::endl;
+    } else if (command == "REG_SENSOR") {
+        int source_id;
+        message_ss >> source_id;
+
+        auto& source = select_source(source_id);
+
+        source.sensors.emplace_back();
+        auto& sensor = source.sensors.back();
+
+        message_ss >> sensor.type;
+        message_ss >> sensor.name;
+
+        sensor.id = source.sensors_counter++;
+
+        // Give the sensor id back to the client
+        auto nbytes = snprintf(write_buffer, 4096, "%d", sensor.id);
+        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+            std::perror("asgard: server: failed to answer");
+            return;
+        }
+
+        if(db_exec_dml(
+            "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
+            "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");"
+            , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str())) {
+
+            auto sensor_type = sensor.type;
+            std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
+            std::string url = "/" + sensor.name + "/" + sensor_type;
+            controller.addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
+            controller.addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
+        }
+
+        std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
+    } else if (command == "UNREG_SENSOR") {
+        int source_id;
+        message_ss >> source_id;
+
+        int sensor_id;
+        message_ss >> sensor_id;
+
+        auto& source = select_source(source_id);
+
+        source.sensors.erase(std::remove_if(source.sensors.begin(), source.sensors.end(), [&](sensor_t& sensor) {
+                                 return sensor.id == static_cast<std::size_t>(sensor_id);
+                             }), source.sensors.end());
+
+        std::cout << "asgard: sensor unregistered from source " << source_id << " : " << sensor_id << std::endl;
+    } else if (command == "REG_ACTUATOR") {
+        int source_id;
+        message_ss >> source_id;
+
+        auto& source = select_source(source_id);
+
+        source.actuators.emplace_back();
+        auto& actuator = source.actuators.back();
+
+        message_ss >> actuator.name;
+
+        actuator.id = source.actuators_counter++;
+
+        // Give the sensor id back to the client
+        auto nbytes = snprintf(write_buffer, 4096, "%d", actuator.id);
+        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+            std::perror("asgard: server: failed to answer");
+            return;
+        }
+
+        if(db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
+                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
+            
+            std::string url = "/" + actuator.name;
+            controller.addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
+            controller.addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+        }
+
+        std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
+    } else if (command == "UNREG_ACTUATOR") {
+        int source_id;
+        message_ss >> source_id;
+
+        int actuator_id;
+        message_ss >> actuator_id;
+
+        auto& source = select_source(source_id);
+
+        source.actuators.erase(std::remove_if(source.actuators.begin(), source.actuators.end(), [&](actuator_t& actuator) {
+                                   return actuator.id == static_cast<std::size_t>(actuator_id);
+                               }), source.actuators.end());
+
+        std::cout << "asgard: actuator unregistered from source " << source_id << " : " << actuator_id << std::endl;
+    } else if (command == "DATA") {
+        int source_id;
+        message_ss >> source_id;
+
+        int sensor_id;
+        message_ss >> sensor_id;
+
+        std::string data;
+        message_ss >> data;
+
+        auto& source = select_source(source_id);
+        auto& sensor = source.sensors[sensor_id];
+
+        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
+
+        db_exec_dml("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
+
+        std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
+    } else if (command == "EVENT") {
+        int source_id;
+        message_ss >> source_id;
+
+        int actuator_id;
+        message_ss >> actuator_id;
+
+        std::string data;
+        message_ss >> data;
+
+        auto& source   = select_source(source_id);
+        auto& actuator = source.actuators[actuator_id];
+
+        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
+
+        db_exec_dml("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
+
+        std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
+    }
+}
+
+int run(){
+    // Create the socket
+    socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if(socket_fd < 0){
+        std::cerr << "socket() failed" << std::endl;
+        return 1;
+    }
+
+    // Init the server address
+    struct sockaddr_un server_address;
+    memset(&server_address, 0, sizeof(struct sockaddr_un));
+    server_address.sun_family = AF_UNIX;
+    snprintf(server_address.sun_path, UNIX_PATH_MAX, socket_path);
+
+    // Unlink the socket file
+    unlink(socket_path);
+
+    // Bind
+    if (::bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
+        std::cerr << "bind() failed" << std::endl;
+        close(socket_fd);
+        return 1;
+    }
+
+    std::cout << "asgard: Server started" << std::endl;
+
+    while (true) {
+        sockaddr_un client_address;
+        socklen_t address_length = sizeof(struct sockaddr_un);
+
+        // Wait for one message
+        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size-1, 0, (struct sockaddr *) &client_address, &address_length);
+        receive_buffer[bytes_received] = '\0';
+
+        // Handle the message
+        handle_command(receive_buffer, client_address, address_length);
+    }
+
+    cleanup();
+
+    return 0;
+}
+
+void db_table() {
+    db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
+    db.execDML(
+        "create table if not exists source(pk_source integer primary key autoincrement,"
+        "name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
+    db.execDML(
+        "create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
+        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML(
+        "create table if not exists actuator(pk_actuator integer primary key autoincrement,"
+        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML(
+        "create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20),"
+        "time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
+    db.execDML(
+        "create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20),"
+        "time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
+}
+
+void db_create() {
+    try {
+        db.open("asgard.db");
+
+        // Create tables
+        db_table();
+
+        // Perform pi insertion
+        db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
+    } catch (CppSQLite3Exception& e) {
+        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
+    }
+}
+
+void init_led() {
+#ifdef __RPI__
+    pinMode(gpio_led_pin, OUTPUT);
+#endif
+}
+
+void cleanup() {
+    set_led_off();
+    close(socket_fd);
+    unlink("/tmp/asgard_socket");
+}
+
+void terminate(int /*signo*/) {
+    std::cout << "asgard: server: stopping the server" << std::endl;
+    cleanup();
+    abort();
+}
+
+bool revoke_root() {
+    if (getuid() == 0) {
+        if (setgid(1000) != 0) {
+            std::cout << "asgard: setgid: Unable to drop group privileges: " << strerror(errno) << std::endl;
+            return false;
+        }
+        if (setuid(1000) != 0) {
+            std::cout << "asgard: setgid: Unable to drop user privileges: " << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+
+    if (setuid(0) != -1) {
+        std::cout << "asgard: managed to regain root privileges, exiting..." << std::endl;
+        return false;
+    }
+
+    return true;
+}
 
 } //end of anonymous namespace
 
