@@ -23,21 +23,17 @@
 
 #include <ctime>
 
-#ifdef __RPI__
-#include <wiringPi.h>
-#endif
-
 #include <mongoose/Server.h>
 #include <mongoose/WebController.h>
 
 #include "asgard/utils.hpp"
 
 #include "db.hpp"
+#include "led.hpp"
 
 namespace {
 
 const std::size_t UNIX_PATH_MAX = 108;
-const std::size_t gpio_led_pin = 1;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
@@ -90,18 +86,6 @@ source_t& select_source(std::size_t source_id) {
 
 // Create the database object
 CppSQLite3DB db;
-
-void set_led_off() {
-#ifdef __RPI__
-    digitalWrite(gpio_led_pin, LOW);
-#endif
-}
-
-void set_led_on() {
-#ifdef __RPI__
-    digitalWrite(gpio_led_pin, HIGH);
-#endif
-}
 
 std::string header = R"=====(
 <!DOCTYPE html>
@@ -798,12 +782,6 @@ int run(){
     return 0;
 }
 
-void init_led() {
-#ifdef __RPI__
-    pinMode(gpio_led_pin, OUTPUT);
-#endif
-}
-
 void cleanup() {
     set_led_off();
     close(socket_fd);
@@ -819,10 +797,7 @@ void terminate(int /*signo*/) {
 } //end of anonymous namespace
 
 int main() {
-#ifdef __RPI__
-    //Run the wiringPi setup (as root)
-    wiringPiSetup();
-#endif
+    setup_led_controller();
 
     //Drop root privileges and run as pi:pi again
     if (!asgard::revoke_root()) {
