@@ -10,6 +10,8 @@
 
 #include "CppSQLite3.h"
 
+CppSQLite3DB& get_db();
+
 template<typename... T>
 int db_exec_dml(CppSQLite3DB& db, const std::string& query, T... args){
     try {

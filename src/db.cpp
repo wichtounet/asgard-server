@@ -7,6 +7,13 @@
 
 #include "db.hpp"
 
+// Create the database object
+CppSQLite3DB db_impl;
+
+CppSQLite3DB& get_db(){
+    return db_impl;
+}
+
 void create_tables(CppSQLite3DB& db) {
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
     db.execDML(
