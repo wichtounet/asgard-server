@@ -40,16 +40,16 @@ remote_clean:
 	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make clean"
 
 remote_make:
-	sshpass -p ${password} scp Makefile ${user}@${pi}:${dir}/
-	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/src/
+	sshpass -p ${password} scp -p Makefile ${user}@${pi}:${dir}/
+	sshpass -p ${password} scp -p src/*.cpp ${user}@${pi}:${dir}/src/
 	sshpass -p ${password} ssh ${user}@${pi} "cd ${dir} && make"
 
 remote_run:
 	sshpass -p ${password} ssh -t ${user}@${pi} "cd ${dir} && make run"
 
 remote_make_run:
-	sshpass -p ${password} scp Makefile ${user}@${pi}:${dir}/
-	sshpass -p ${password} scp src/*.cpp ${user}@${pi}:${dir}/src/
+	sshpass -p ${password} scp -p Makefile ${user}@${pi}:${dir}/
+	sshpass -p ${password} scp -p src/*.cpp ${user}@${pi}:${dir}/src/
 	sshpass -p ${password} ssh -t ${user}@${pi} "cd ${dir} && make && make run"
 
 clean: base_clean
