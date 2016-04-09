@@ -32,7 +32,7 @@
 
 #include "asgard/utils.hpp"
 
-#include "CppSQLite3.h"
+#include "db.hpp"
 
 namespace {
 
@@ -90,45 +90,6 @@ source_t& select_source(std::size_t source_id) {
 
 // Create the database object
 CppSQLite3DB db;
-
-template<typename... T>
-int db_exec_dml(const std::string& query, T... args){
-    try {
-        CppSQLite3Buffer buffSQL;
-        buffSQL.format(query.c_str(), args...);
-        return db.execDML(buffSQL);
-    } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
-
-    return 0;
-}
-
-template<typename... T>
-int db_exec_scalar(const std::string& query, T... args){
-    try {
-        CppSQLite3Buffer buffSQL;
-        buffSQL.format(query.c_str(), args...);
-        return db.execScalar(buffSQL);
-    } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
-
-    return -1;
-}
-
-template<typename... T>
-CppSQLite3Query db_exec_query(const std::string& query, T... args){
-    try {
-        CppSQLite3Buffer buffSQL;
-        buffSQL.format(query.c_str(), args...);
-        return db.execQuery(buffSQL);
-    } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
-
-    return {};
-}
 
 void set_led_off() {
 #ifdef __RPI__
@@ -247,7 +208,7 @@ struct display_controller : public Mongoose::WebController {
             std::string sensor_type = sensor_query.fieldValue(1);
             int sensor_pk = sensor_query.getIntField(2);
 
-            CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+            CppSQLite3Query sensor_data = db_exec_query(db, "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
             if (!sensor_data.eof()) {
                 std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
@@ -288,7 +249,7 @@ struct display_controller : public Mongoose::WebController {
             std::string actuator_name = actuator_query.fieldValue(0);
             int actuator_pk = actuator_query.getIntField(1);
 
-            CppSQLite3Query actuator_data = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+            CppSQLite3Query actuator_data = db_exec_query(db, "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
             if (!actuator_data.eof()) {
                 std::string url_data   = actuator_name + "/data";
@@ -385,12 +346,12 @@ struct display_controller : public Mongoose::WebController {
 
         std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::toupper);
 
-        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor_name.c_str(), sensor_type.c_str());
+        int sensor_pk = db_exec_scalar(db, "select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor_name.c_str(), sensor_type.c_str());
 
         std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
 
         sensor_type[0] = toupper(sensor_type[0]);
-        CppSQLite3Query sensor_query = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+        CppSQLite3Query sensor_query = db_exec_query(db, "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_query.eof()) {
             std::string sensor_data = sensor_query.fieldValue(0);
@@ -422,7 +383,7 @@ struct display_controller : public Mongoose::WebController {
                          << sensor_name << " (" << sensor_type << ")</li></ul>"
                          << "<ul><li>Last Value : " << sensor_data << "</li>" << std::endl;
 
-                int nbValue = db_exec_scalar("select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
+                int nbValue = db_exec_scalar(db, "select count(data) from sensor_data where fk_sensor=%d;", sensor_pk);
                 response << "<li>Number of Values : " << nbValue << "</li></ul>" << std::endl;
             }
             response << "</div>" << std::endl;
@@ -443,12 +404,12 @@ struct display_controller : public Mongoose::WebController {
 
         std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::toupper);
 
-        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor_name.c_str(), sensor_type.c_str());
+        int sensor_pk = db_exec_scalar(db, "select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor_name.c_str(), sensor_type.c_str());
 
         std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
 
         sensor_type[0] = toupper(sensor_type[0]);
-        CppSQLite3Query sensor_query = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+        CppSQLite3Query sensor_query = db_exec_query(db, "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_query.eof()) {
             std::string sensor_data = sensor_query.fieldValue(0);
@@ -463,7 +424,7 @@ struct display_controller : public Mongoose::WebController {
                              << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
 
                     CppSQLite3Query sensor_interval = db_exec_query(
-                        "select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
+                        db, "select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
 
                     std::string sensor_time;
 
@@ -493,7 +454,7 @@ struct display_controller : public Mongoose::WebController {
                     response << "}, series: [{showInLegend: false, name: '" << sensor_name << "', data: [";
 
                     sensor_query = db_exec_query(
-                        "select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
+                        db, "select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
 
                     while (!sensor_query.eof()) {
                         sensor_data = sensor_query.fieldValue(0);
@@ -524,9 +485,9 @@ struct display_controller : public Mongoose::WebController {
 
         std::string actuator_name(url.begin() + start, url.begin() + end);
 
-        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
+        int actuator_pk = db_exec_scalar(db, "select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
 
-        CppSQLite3Query actuator_query = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+        CppSQLite3Query actuator_query = db_exec_query(db, "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
         if (!actuator_query.eof()) {
             std::string actuator_data = actuator_query.fieldValue(0);
@@ -537,7 +498,7 @@ struct display_controller : public Mongoose::WebController {
                      << "<li class=\"title\">Actuator name : " << actuator_name << "</li></ul>" << std::endl
                      << "<ul><li>Last Input : " << actuator_data << "</li>" << std::endl;
 
-            int nbClicks = db_exec_scalar("select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
+            int nbClicks = db_exec_scalar(db, "select count(data) from actuator_data where fk_actuator=%d;", actuator_pk);
             response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl
                      << "</div>" << std::endl;
         }
@@ -551,9 +512,9 @@ struct display_controller : public Mongoose::WebController {
 
         std::string actuator_name(url.begin() + start, url.begin() + end);
 
-        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
+        int actuator_pk = db_exec_scalar(db, "select pk_actuator from actuator where name=\"%s\";", actuator_name.c_str());
 
-        CppSQLite3Query actuator_query = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+        CppSQLite3Query actuator_query = db_exec_query(db, "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
         if (!actuator_query.eof()) {
             auto div_id = actuator_name;
@@ -580,7 +541,7 @@ struct display_controller : public Mongoose::WebController {
                 std::string sensor_type = sensor_query.fieldValue(1);
                 int sensor_pk = sensor_query.getIntField(2);
 
-                CppSQLite3Query sensor_data = db_exec_query("select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+                CppSQLite3Query sensor_data = db_exec_query(db, "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
                 if (!sensor_data.eof()) {
                     std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
@@ -599,7 +560,7 @@ struct display_controller : public Mongoose::WebController {
                 std::string url = std::string("/") + actuator_query.fieldValue(0);
                 int actuator_pk = actuator_query.getIntField(1);
 
-                CppSQLite3Query actuator_data = db_exec_query("select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
+                CppSQLite3Query actuator_data = db_exec_query(db, "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
                 if (!actuator_data.eof()) {
                     addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
@@ -686,7 +647,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         }
 
         if(db_exec_dml(
-            "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
+            db, "insert into sensor(type, name, fk_source) select \"%s\", \"%s\","
             "%d where not exists(select 1 from sensor where type=\"%s\" and name=\"%s\");"
             , sensor.type.c_str(), sensor.name.c_str(), source.id_sql, sensor.type.c_str(), sensor.name.c_str())) {
 
@@ -732,7 +693,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             return;
         }
 
-        if(db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
+        if(db_exec_dml(db, "insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
                       , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
 
             std::string url = "/" + actuator.name;
@@ -768,9 +729,9 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source = select_source(source_id);
         auto& sensor = source.sensors[sensor_id];
 
-        int sensor_pk = db_exec_scalar("select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
+        int sensor_pk = db_exec_scalar(db, "select pk_sensor from sensor where name=\"%s\" and type=\"%s\";", sensor.name.c_str(), sensor.type.c_str());
 
-        db_exec_dml("insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
+        db_exec_dml(db, "insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
 
         std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
     } else if (command == "EVENT") {
@@ -786,9 +747,9 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         auto& source   = select_source(source_id);
         auto& actuator = source.actuators[actuator_id];
 
-        int actuator_pk = db_exec_scalar("select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
+        int actuator_pk = db_exec_scalar(db, "select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
 
-        db_exec_dml("insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
+        db_exec_dml(db, "insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
     }
@@ -837,39 +798,6 @@ int run(){
     return 0;
 }
 
-void db_table() {
-    db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
-    db.execDML(
-        "create table if not exists source(pk_source integer primary key autoincrement,"
-        "name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
-    db.execDML(
-        "create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
-        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML(
-        "create table if not exists actuator(pk_actuator integer primary key autoincrement,"
-        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
-    db.execDML(
-        "create table if not exists sensor_data(pk_sensor_data integer primary key autoincrement, data char(20),"
-        "time datetime not null default current_timestamp, fk_sensor integer, foreign key(fk_sensor) references sensor(pk_sensor));");
-    db.execDML(
-        "create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20),"
-        "time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
-}
-
-void db_create() {
-    try {
-        db.open("asgard.db");
-
-        // Create tables
-        db_table();
-
-        // Perform pi insertion
-        db.execDML("insert into pi(name) select 'tyr' where not exists(select 1 from pi where name='tyr');");
-    } catch (CppSQLite3Exception& e) {
-        std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
-    }
-}
-
 void init_led() {
 #ifdef __RPI__
     pinMode(gpio_led_pin, OUTPUT);
@@ -903,7 +831,10 @@ int main() {
     }
 
     // Open (connect) the database
-    db_create();
+    if(!db_connect(db)){
+       std::cout << "asgard: unable to connect to the database, exiting..." << std::endl;
+       return 1;
+    }
 
     // Run the server with our controller
     Mongoose::Server server(8080);
