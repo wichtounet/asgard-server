@@ -30,6 +30,8 @@
 #include <mongoose/Server.h>
 #include <mongoose/WebController.h>
 
+#include "asgard/utils.hpp"
+
 #include "CppSQLite3.h"
 
 namespace {
@@ -732,7 +734,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         if(db_exec_dml("insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
                       , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
-            
+
             std::string url = "/" + actuator.name;
             controller.addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
             controller.addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
@@ -886,26 +888,6 @@ void terminate(int /*signo*/) {
     abort();
 }
 
-bool revoke_root() {
-    if (getuid() == 0) {
-        if (setgid(1000) != 0) {
-            std::cout << "asgard: setgid: Unable to drop group privileges: " << strerror(errno) << std::endl;
-            return false;
-        }
-        if (setuid(1000) != 0) {
-            std::cout << "asgard: setgid: Unable to drop user privileges: " << strerror(errno) << std::endl;
-            return false;
-        }
-    }
-
-    if (setuid(0) != -1) {
-        std::cout << "asgard: managed to regain root privileges, exiting..." << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
 } //end of anonymous namespace
 
 int main() {
@@ -915,7 +897,7 @@ int main() {
 #endif
 
     //Drop root privileges and run as pi:pi again
-    if (!revoke_root()) {
+    if (!asgard::revoke_root()) {
        std::cout << "asgard: unable to revoke root privileges, exiting..." << std::endl;
        return 1;
     }

@@ -16,7 +16,7 @@ conf: pi.conf
 
 include pi.conf
 
-CXX_FLAGS += -ICppSQLite -pedantic -pthread
+CXX_FLAGS += -ICppSQLite -pedantic -pthread -Iasgard-lib/include
 LD_FLAGS  += -lsqlite3 -lmongoose
 
 ifeq (,$(MAKE_NO_RPI))
