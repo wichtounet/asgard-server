@@ -26,6 +26,7 @@
 #include <mongoose/Server.h>
 #include <mongoose/WebController.h>
 
+#include "asgard/config.hpp"
 #include "asgard/utils.hpp"
 
 #include "db.hpp"
@@ -37,8 +38,6 @@ namespace {
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
-
-const char* socket_path = "/tmp/asgard_socket";
 
 int socket_fd;
 
@@ -275,10 +274,10 @@ int run(){
     struct sockaddr_un server_address;
     memset(&server_address, 0, sizeof(struct sockaddr_un));
     server_address.sun_family = AF_UNIX;
-    snprintf(server_address.sun_path, UNIX_PATH_MAX, socket_path);
+    snprintf(server_address.sun_path, UNIX_PATH_MAX, asgard::get_string_value(config, "server_socket_path"));
 
     // Unlink the socket file
-    unlink(socket_path);
+    unlink(asgard::get_string_value(config, "server_socket_path"));
 
     // Bind
     if (::bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
@@ -321,6 +320,9 @@ void terminate(int /*signo*/) {
 } //end of anonymous namespace
 
 int main() {
+    // Load the configuration file
+    load_config(config);
+
     setup_led_controller();
 
     //Drop root privileges and run as pi:pi again
