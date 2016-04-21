@@ -51,6 +51,12 @@ struct sensor_t {
     std::string name;
 };
 
+struct action_t {
+    std::size_t id;
+    std::string type;
+    std::string name;
+};
+
 struct actuator_t {
     std::size_t id;
     std::string name;
@@ -61,10 +67,12 @@ struct source_t {
     std::string name;
     std::vector<sensor_t> sensors;
     std::vector<actuator_t> actuators;
+    std::vector<action_t> actions;
 
     std::size_t id_sql;
     std::size_t sensors_counter;
     std::size_t actuators_counter;
+    std::size_t actions_counter;
 };
 
 std::size_t current_source = 0;
@@ -101,6 +109,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         source.id                = current_source++;
         source.sensors_counter   = 0;
         source.actuators_counter = 0;
+        source.actions_counter   = 0;
 
         message_ss >> source.name;
 
@@ -180,6 +189,48 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
                              }), source.sensors.end());
 
         std::cout << "asgard: sensor unregistered from source " << source_id << " : " << sensor_id << std::endl;
+    } else if (command == "REG_ACTION") {
+        int source_id;
+        message_ss >> source_id;
+
+        auto& source = select_source(source_id);
+
+        source.actions.emplace_back();
+        auto& action = source.actions.back();
+
+        message_ss >> action.type;
+        message_ss >> action.name;
+
+        action.id = source.actions_counter++;
+
+        // Give the action id back to the client
+        auto nbytes = snprintf(write_buffer, 4096, "%d", action.id);
+        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+            std::perror("asgard: server: failed to answer");
+            return;
+        }
+
+        db_exec_dml(
+            get_db(),
+            "insert into action(type, name, fk_source) select \"%s\", \"%s\","
+            "%d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
+            action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
+
+        std::cout << "asgard: new action registered " << action.id << " (" << action.type << ") : " << action.name << std::endl;
+    } else if (command == "UNREG_ACTION") {
+        int source_id;
+        message_ss >> source_id;
+
+        int action_id;
+        message_ss >> action_id;
+
+        auto& source = select_source(source_id);
+
+        source.actions.erase(std::remove_if(source.actions.begin(), source.actions.end(), [&](action_t& action) {
+                                 return action.id == static_cast<std::size_t>(action_id);
+                             }), source.actions.end());
+
+        std::cout << "asgard: action unregistered from source " << source_id << " : " << action_id << std::endl;
     } else if (command == "REG_ACTUATOR") {
         int source_id;
         message_ss >> source_id;
