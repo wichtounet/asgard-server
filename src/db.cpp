@@ -23,6 +23,9 @@ void create_tables(CppSQLite3DB& db) {
         "create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
         "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML(
+        "create table if not exists action(pk_action integer primary key autoincrement, type char(20),"
+        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML(
         "create table if not exists actuator(pk_actuator integer primary key autoincrement,"
         "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML(
