@@ -217,6 +217,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             "%d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
             action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
 
+        //TODO Dynamically register the actions
+
         std::cout << "asgard: new action registered " << action.id << " (" << action.type << ") : " << action.name << std::endl;
     } else if (command == "UNREG_ACTION") {
         int source_id;
