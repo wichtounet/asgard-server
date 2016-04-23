@@ -74,6 +74,8 @@ struct source_t {
     std::size_t sensors_counter;
     std::size_t actuators_counter;
     std::size_t actions_counter;
+
+    sockaddr_un addr;
 };
 
 std::size_t current_source = 0;
@@ -111,6 +113,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         source.sensors_counter   = 0;
         source.actuators_counter = 0;
         source.actions_counter   = 0;
+        source.addr = client_address;
 
         message_ss >> source.name;
 
