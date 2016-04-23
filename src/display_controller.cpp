@@ -458,6 +458,32 @@ function load_menu(name) {
         response << "</ul>";
     }
 
+    void display_controller::action(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+        std::string url = request.getUrl();
+        std::cout << url << std::endl;
+
+        auto start_source = url.find("/", 1) + 1;
+        auto end_source = url.find("/", start_source);
+
+        auto start_action = end_source + 1;
+        auto end_action = url.size();
+
+        std::string source_name(url.begin() + start_source, url.begin() + end_source);
+        std::string action_name(url.begin() + start_action, url.begin() + end_action);
+
+        CppSQLite3Query source_query = db_exec_query(get_db(), "select pk_source from source where name=\"%s\";", source_name.c_str());
+
+        if(!source_query.eof()){
+            int pk_source = source_query.getIntField(0);
+
+            CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+
+            if(!action_query.eof()){
+                int pk_action = action_query.getIntField(0);
+            }
+        }
+    }
+
     //This will be called automatically
     void display_controller::display_controller::setup() {
         addRoute<display_controller>("GET", "/", &display_controller::display);
@@ -471,6 +497,8 @@ function load_menu(name) {
         //Otherwise the new sensors will not show unless we restart the server
 
         try {
+            // Register the sensor data and script pages
+
             CppSQLite3Query sensor_query = get_db().execQuery("select name, type, pk_sensor from sensor order by name;");
 
             while (!sensor_query.eof()) {
@@ -491,6 +519,8 @@ function load_menu(name) {
                 sensor_query.nextRow();
             }
 
+            // Register the actuator data and script pages
+
             CppSQLite3Query actuator_query = get_db().execQuery("select name, pk_actuator from actuator order by name;");
 
             while (!actuator_query.eof()) {
@@ -505,6 +535,22 @@ function load_menu(name) {
                 }
 
                 actuator_query.nextRow();
+            }
+
+            // Register the action pages
+
+            CppSQLite3Query action_query = get_db().execQuery("select name, fk_source from action;");
+
+            while (!action_query.eof()) {
+                std::string action_name = action_query.fieldValue(0);
+                int fk_source = action_query.getIntField(1);
+
+                CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", fk_source);
+                std::string source_name = source_query.fieldValue(0);
+
+                addRoute<display_controller>("GET", "/action/" + source_name + "/" + action_name, &display_controller::action);
+
+                action_query.nextRow();
             }
 
         } catch (CppSQLite3Exception& e){
