@@ -31,6 +31,7 @@
 #include "db.hpp"
 #include "led.hpp"
 #include "display_controller.hpp"
+#include "server.hpp"
 
 namespace {
 
@@ -90,6 +91,18 @@ source_t& select_source(std::size_t source_id) {
     }
 
     std::cerr << "asgard: server: Invalid request for source id " << source_id << std::endl;
+
+    return sources.front();
+}
+
+source_t& select_source_from_sql(std::size_t source_id) {
+    for (auto& source : sources) {
+        if (source.id_sql == source_id) {
+            return source;
+        }
+    }
+
+    std::cerr << "asgard: server: Invalid request for source id sql " << source_id << std::endl;
 
     return sources.front();
 }
@@ -375,6 +388,11 @@ void terminate(int /*signo*/) {
 }
 
 } //end of anonymous namespace
+
+sockaddr_un& source_addr_from_sql(int id_sql){
+    auto& source = select_source_from_sql(id_sql);
+    return source.addr;
+}
 
 int main() {
     setup_led_controller();

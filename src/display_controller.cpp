@@ -10,6 +10,7 @@
 #include "display_controller.hpp"
 #include "db.hpp"
 #include "led.hpp"
+#include "server.hpp"
 
 const std::vector<size_t> interval{1, 24, 48};
 
