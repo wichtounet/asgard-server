@@ -465,7 +465,7 @@ function load_menu(name) {
         addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
 
-        addRoute<display_controller>("GET", "/beta/actions", &display_controller::display_actions);
+        addRoute<display_controller>("GET", "/actions", &display_controller::display_actions);
 
         //TODO The routes should be added dynamically when we register a new source or sensor or actuator
         //Otherwise the new sensors will not show unless we restart the server
