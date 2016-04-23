@@ -432,12 +432,40 @@ function load_menu(name) {
         }
     }
 
+    void display_controller::display_actions(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+        CppSQLite3Query action_query = get_db().execQuery("select pk_action, fk_source, name, type from action;");
+
+        response << "<ul>";
+
+        while (!action_query.eof()) {
+            int action_pk = action_query.getIntField(0);
+            int source_pk = action_query.getIntField(1);
+            std::string action_name = action_query.fieldValue(2);
+            std::string action_type = action_query.fieldValue(3);
+
+            CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
+            std::string source_name = source_query.fieldValue(0);
+
+            if (action_type == "SIMPLE") {
+                response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>";
+            } else {
+                response << "<li>" << action_name << "</li>";
+            }
+
+            action_query.nextRow();
+        }
+
+        response << "</ul>";
+    }
+
     //This will be called automatically
     void display_controller::display_controller::setup() {
         addRoute<display_controller>("GET", "/", &display_controller::display);
         addRoute<display_controller>("GET", "/display", &display_controller::display);
         addRoute<display_controller>("GET", "/led_on", &display_controller::led_on);
         addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
+
+        addRoute<display_controller>("GET", "/beta/actions", &display_controller::display_actions);
 
         //TODO The routes should be added dynamically when we register a new source or sensor or actuator
         //Otherwise the new sensors will not show unless we restart the server
