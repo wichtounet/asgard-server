@@ -9,3 +9,5 @@
 #include<sys/un.h>
 
 sockaddr_un& source_addr_from_sql(int id_sql);
+
+bool send_message(sockaddr_un& client_address, const std::string& message);

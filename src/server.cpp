@@ -394,6 +394,19 @@ sockaddr_un& source_addr_from_sql(int id_sql){
     return source.addr;
 }
 
+bool send_message(sockaddr_un& client_address, const std::string& message){
+    socklen_t address_length = sizeof(struct sockaddr_un);
+
+    auto nbytes = snprintf(write_buffer, 4096, "%s", message.c_str());
+
+    if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        std::perror("asgard: server: failed to send message");
+        return false;
+    }
+
+    return true;
+}
+
 int main() {
     setup_led_controller();
 

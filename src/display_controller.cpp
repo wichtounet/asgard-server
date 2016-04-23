@@ -481,6 +481,10 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
 
         if(!action_query.eof()){
             int pk_action = action_query.getIntField(0);
+
+            auto& client_addr = source_addr_from_sql(pk_source);
+
+            send_message(client_addr, "ACTION " + action_name);
         }
     }
 }
