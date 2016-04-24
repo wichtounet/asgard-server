@@ -111,12 +111,10 @@ void display_controller::display_controller::display_menu(Mongoose::StreamRespon
 }
 
 void display_controller::display_controller::display_sensors(Mongoose::StreamResponse& response) {
-    CppSQLite3Query sensor_query = get_db().execQuery("select name, type, pk_sensor from sensor order by name;");
-
-    while (!sensor_query.eof()) {
-        std::string sensor_name = sensor_query.fieldValue(0);
-        std::string sensor_type = sensor_query.fieldValue(1);
-        int sensor_pk = sensor_query.getIntField(2);
+    for (auto& data : get_db().execQuery("select name, type, pk_sensor from sensor order by name;")) {
+        std::string sensor_name = data.fieldValue(0);
+        std::string sensor_type = data.fieldValue(1);
+        int sensor_pk = data.getIntField(2);
 
         CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
@@ -147,17 +145,13 @@ void display_controller::display_controller::display_sensors(Mongoose::StreamRes
 
                      << "})</script>" << std::endl;
         }
-
-        sensor_query.nextRow();
     }
 }
 
 void display_controller::display_controller::display_actuators(Mongoose::StreamResponse& response) {
-    CppSQLite3Query actuator_query = get_db().execQuery("select name, pk_actuator from actuator order by name;");
-
-    while (!actuator_query.eof()) {
-        std::string actuator_name = actuator_query.fieldValue(0);
-        int actuator_pk = actuator_query.getIntField(1);
+    for (auto& data : get_db().execQuery("select name, pk_actuator from actuator order by name;")) {
+        std::string actuator_name = data.fieldValue(0);
+        int actuator_pk = data.getIntField(1);
 
         CppSQLite3Query actuator_data = db_exec_query(get_db(), "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
@@ -186,8 +180,6 @@ void display_controller::display_controller::display_actuators(Mongoose::StreamR
 
                      << "})</script>" << std::endl;
         }
-
-        actuator_query.nextRow();
     }
 }
 
@@ -201,23 +193,18 @@ void display_controller::display_controller::display(Mongoose::Request& /*reques
         response << "<script>function load_source(pk) {" << std::endl;
         response << "$('.hideable').hide();" << std::endl;
 
-        CppSQLite3Query sensor_query = get_db().execQuery("select distinct name, fk_source from sensor order by name;");
-
-        while (!sensor_query.eof()) {
-            std::string sensor_name = sensor_query.fieldValue(0);
-            int sensor_fk = sensor_query.getIntField(1);
+        for (auto& data : get_db().execQuery("select distinct name, fk_source from sensor order by name;")) {
+            std::string sensor_name = data.fieldValue(0);
+            int sensor_fk = data.getIntField(1);
             response << "if (pk == " << sensor_fk << ") { $('." << sensor_name << "').show(); }" << std::endl;
-            sensor_query.nextRow();
         }
 
-        CppSQLite3Query actuator_query = get_db().execQuery("select distinct name, fk_source from actuator order by name;");
-
-        while (!actuator_query.eof()) {
-            std::string actuator_name = actuator_query.fieldValue(0);
-            int actuator_fk = actuator_query.getIntField(1);
+        for (auto& data : get_db().execQuery("select distinct name, fk_source from actuator order by name;")) {
+            std::string actuator_name = data.fieldValue(0);
+            int actuator_fk = data.getIntField(1);
             response << "if (pk == " << actuator_fk << ") { $('." << actuator_name << "').show(); }" << std::endl;
-            actuator_query.nextRow();
         }
+
         response << "}" << "</script>" << std::endl;
 
         display_menu(response);
@@ -434,15 +421,13 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
 }
 
 void display_controller::display_actions(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    CppSQLite3Query action_query = get_db().execQuery("select pk_action, fk_source, name, type from action;");
-
     response << "<ul>";
 
-    while (!action_query.eof()) {
-        int action_pk = action_query.getIntField(0);
-        int source_pk = action_query.getIntField(1);
-        std::string action_name = action_query.fieldValue(2);
-        std::string action_type = action_query.fieldValue(3);
+    for (auto& data : get_db().execQuery("select pk_action, fk_source, name, type from action;")) {
+        int action_pk = data.getIntField(0);
+        int source_pk = data.getIntField(1);
+        std::string action_name = data.fieldValue(2);
+        std::string action_type = data.fieldValue(3);
 
         CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
         std::string source_name = source_query.fieldValue(0);
@@ -452,8 +437,6 @@ void display_controller::display_actions(Mongoose::Request& request, Mongoose::S
         } else {
             response << "<li>" << action_name << "</li>";
         }
-
-        action_query.nextRow();
     }
 
     response << "</ul>";
@@ -504,12 +487,10 @@ void display_controller::display_controller::setup() {
     try {
         // Register the sensor data and script pages
 
-        CppSQLite3Query sensor_query = get_db().execQuery("select name, type, pk_sensor from sensor order by name;");
-
-        while (!sensor_query.eof()) {
-            std::string sensor_name = sensor_query.fieldValue(0);
-            std::string sensor_type = sensor_query.fieldValue(1);
-            int sensor_pk = sensor_query.getIntField(2);
+        for(auto& data : get_db().execQuery("select name, type, pk_sensor from sensor order by name;")){
+            std::string sensor_name = data.fieldValue(0);
+            std::string sensor_type = data.fieldValue(1);
+            int sensor_pk = data.getIntField(2);
 
             CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
@@ -520,17 +501,13 @@ void display_controller::display_controller::setup() {
                 addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
                 addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
             }
-
-            sensor_query.nextRow();
         }
 
         // Register the actuator data and script pages
 
-        CppSQLite3Query actuator_query = get_db().execQuery("select name, pk_actuator from actuator order by name;");
-
-        while (!actuator_query.eof()) {
-            std::string url = std::string("/") + actuator_query.fieldValue(0);
-            int actuator_pk = actuator_query.getIntField(1);
+        for(auto& data : get_db().execQuery("select name, pk_actuator from actuator order by name;")){
+            std::string url = std::string("/") + data.fieldValue(0);
+            int actuator_pk = data.getIntField(1);
 
             CppSQLite3Query actuator_data = db_exec_query(get_db(), "select data from actuator_data where fk_actuator=%d order by time desc limit 1;", actuator_pk);
 
@@ -538,26 +515,19 @@ void display_controller::display_controller::setup() {
                 addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
                 addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
             }
-
-            actuator_query.nextRow();
         }
 
         // Register the action pages
 
-        CppSQLite3Query action_query = get_db().execQuery("select name, fk_source from action;");
-
-        while (!action_query.eof()) {
-            std::string action_name = action_query.fieldValue(0);
-            int fk_source = action_query.getIntField(1);
+        for(auto& data : get_db().execQuery("select name, fk_source from action;")){
+            std::string action_name = data.fieldValue(0);
+            int fk_source = data.getIntField(1);
 
             CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", fk_source);
             std::string source_name = source_query.fieldValue(0);
 
             addRoute<display_controller>("GET", "/action/" + source_name + "/" + action_name, &display_controller::action);
-
-            action_query.nextRow();
         }
-
     } catch (CppSQLite3Exception& e){
         std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
     }
