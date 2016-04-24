@@ -126,7 +126,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         source.sensors_counter   = 0;
         source.actuators_counter = 0;
         source.actions_counter   = 0;
-        source.addr = client_address;
+        source.addr              = client_address;
 
         message_ss >> source.name;
 
