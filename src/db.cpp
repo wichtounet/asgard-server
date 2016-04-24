@@ -14,6 +14,43 @@ CppSQLite3DB& get_db(){
     return db_impl;
 }
 
+query_iterator::query_iterator(CppSQLite3Query& query, bool end) : query(query), end(end) {
+    if(!end && query.eof()){
+        this->end = true;
+    }
+}
+
+bool query_iterator::operator==(const query_iterator& rhs) const {
+    return end == rhs.end;
+}
+
+bool query_iterator::operator!=(const query_iterator& rhs) const {
+    return end != rhs.end;
+}
+
+query_iterator& query_iterator::operator++(){
+    if(!end){
+        query.nextRow();
+        if(query.eof()){
+            end = true;
+        }
+    }
+
+    return *this;
+}
+
+CppSQLite3Query& query_iterator::operator*(){
+    return query;
+}
+
+query_iterator begin(CppSQLite3Query& query){
+    return query_iterator(query);
+}
+
+query_iterator end(CppSQLite3Query& query){
+    return query_iterator(query, true);
+}
+
 void create_tables(CppSQLite3DB& db) {
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
     db.execDML(

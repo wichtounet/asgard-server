@@ -51,5 +51,21 @@ CppSQLite3Query db_exec_query(CppSQLite3DB& db, const std::string& query, T... a
     return {};
 }
 
+struct query_iterator {
+    CppSQLite3Query& query;
+    bool end;
+
+    query_iterator(CppSQLite3Query& query, bool end = false);
+
+    bool operator==(const query_iterator& rhs) const ;
+    bool operator!=(const query_iterator& rhs) const ;
+
+    query_iterator& operator++();
+    CppSQLite3Query& operator*();
+};
+
+query_iterator begin(CppSQLite3Query& query);
+query_iterator end(CppSQLite3Query& query);
+
 void create_tables(CppSQLite3DB& db);
 bool db_connect(CppSQLite3DB& db);
