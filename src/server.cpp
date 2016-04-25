@@ -5,21 +5,22 @@
 //  http://opensource.org/licenses/MIT)
 //=======================================================================
 
-#include<iostream>
-#include<sstream>
-#include<thread>
-#include<vector>
-#include<algorithm>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <thread>
+#include <vector>
+#include <algorithm>
 
-#include<cstdlib>
-#include<cstdio>
-#include<cstring>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
-#include<sys/socket.h>
-#include<sys/un.h>
-#include<sys/types.h>
-#include<unistd.h>
-#include<signal.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include <ctime>
 
@@ -35,6 +36,8 @@
 
 namespace {
 
+// Configuration
+std::vector<asgard::KeyValue> config;
 const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
@@ -325,7 +328,7 @@ int run(){
     struct sockaddr_un server_address;
     memset(&server_address, 0, sizeof(struct sockaddr_un));
     server_address.sun_family = AF_UNIX;
-    snprintf(server_address.sun_path, UNIX_PATH_MAX, asgard::get_string_value(config, "server_socket_path"));
+    snprintf(server_address.sun_path, UNIX_PATH_MAX, asgard::get_string_value(config, "server_socket_path").c_str());
 
     // Unlink the socket file
     unlink(asgard::get_string_value(config, "server_socket_path"));
@@ -372,7 +375,7 @@ void terminate(int /*signo*/) {
 
 int main() {
     // Load the configuration file
-    load_config(config);
+    asgard::load_config(config);
 
     setup_led_controller();
 
