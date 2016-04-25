@@ -349,7 +349,7 @@ int run(){
     snprintf(server_address.sun_path, UNIX_PATH_MAX, asgard::get_string_value(config, "server_socket_path").c_str());
 
     // Unlink the socket file
-    unlink(asgard::get_string_value(config, "server_socket_path"));
+    unlink(asgard::get_string_value(config, "server_socket_path").c_str());
 
     // Bind
     if (::bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
