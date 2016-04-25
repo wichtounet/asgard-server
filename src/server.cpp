@@ -33,6 +33,7 @@
 #include "db.hpp"
 #include "led.hpp"
 #include "display_controller.hpp"
+#include "server.hpp"
 
 namespace {
 
@@ -76,6 +77,8 @@ struct source_t {
     std::size_t sensors_counter;
     std::size_t actuators_counter;
     std::size_t actions_counter;
+
+    sockaddr_un addr;
 };
 
 std::size_t current_source = 0;
@@ -90,6 +93,18 @@ source_t& select_source(std::size_t source_id) {
     }
 
     std::cerr << "asgard: server: Invalid request for source id " << source_id << std::endl;
+
+    return sources.front();
+}
+
+source_t& select_source_from_sql(std::size_t source_id) {
+    for (auto& source : sources) {
+        if (source.id_sql == source_id) {
+            return source;
+        }
+    }
+
+    std::cerr << "asgard: server: Invalid request for source id sql " << source_id << std::endl;
 
     return sources.front();
 }
@@ -113,6 +128,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         source.sensors_counter   = 0;
         source.actuators_counter = 0;
         source.actions_counter   = 0;
+        source.addr              = client_address;
 
         message_ss >> source.name;
 
@@ -218,6 +234,8 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
             "insert into action(type, name, fk_source) select \"%s\", \"%s\","
             "%d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
             action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
+
+        //TODO Dynamically register the actions
 
         std::cout << "asgard: new action registered " << action.id << " (" << action.type << ") : " << action.name << std::endl;
     } else if (command == "UNREG_ACTION") {
@@ -372,6 +390,24 @@ void terminate(int /*signo*/) {
 }
 
 } //end of anonymous namespace
+
+sockaddr_un& source_addr_from_sql(int id_sql){
+    auto& source = select_source_from_sql(id_sql);
+    return source.addr;
+}
+
+bool send_message(sockaddr_un& client_address, const std::string& message){
+    socklen_t address_length = sizeof(struct sockaddr_un);
+
+    auto nbytes = snprintf(write_buffer, 4096, "%s", message.c_str());
+
+    if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        std::perror("asgard: server: failed to send message");
+        return false;
+    }
+
+    return true;
+}
 
 int main() {
     // Load the configuration file

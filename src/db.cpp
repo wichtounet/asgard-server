@@ -14,6 +14,43 @@ CppSQLite3DB& get_db(){
     return db_impl;
 }
 
+query_iterator::query_iterator(CppSQLite3Query& query, bool end) : query(query), end(end) {
+    if(!end && query.eof()){
+        this->end = true;
+    }
+}
+
+bool query_iterator::operator==(const query_iterator& rhs) const {
+    return end == rhs.end;
+}
+
+bool query_iterator::operator!=(const query_iterator& rhs) const {
+    return end != rhs.end;
+}
+
+query_iterator& query_iterator::operator++(){
+    if(!end){
+        query.nextRow();
+        if(query.eof()){
+            end = true;
+        }
+    }
+
+    return *this;
+}
+
+CppSQLite3Query& query_iterator::operator*(){
+    return query;
+}
+
+query_iterator begin(CppSQLite3Query& query){
+    return query_iterator(query);
+}
+
+query_iterator end(CppSQLite3Query& query){
+    return query_iterator(query, true);
+}
+
 void create_tables(CppSQLite3DB& db) {
     db.execDML("create table if not exists pi(pk_pi integer primary key autoincrement, name char(20) unique);");
     db.execDML(
@@ -21,6 +58,9 @@ void create_tables(CppSQLite3DB& db) {
         "name char(20) unique, fk_pi integer, foreign key(fk_pi) references pi(pk_pi));");
     db.execDML(
         "create table if not exists sensor(pk_sensor integer primary key autoincrement, type char(20),"
+        "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
+    db.execDML(
+        "create table if not exists action(pk_action integer primary key autoincrement, type char(20),"
         "name char(20), fk_source integer, foreign key(fk_source) references source(pk_source));");
     db.execDML(
         "create table if not exists actuator(pk_actuator integer primary key autoincrement,"
