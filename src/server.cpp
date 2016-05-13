@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/types.h>
@@ -43,7 +44,9 @@ const std::size_t UNIX_PATH_MAX = 108;
 const std::size_t socket_buffer_size = 4096;
 const std::size_t max_sources = 32;
 
-int socket_fd;
+int socket_fd, client_sock, socket_size, *new_sock;
+struct sockaddr_in server, client;
+std::vector<std::thread> threads;
 
 // Allocate space for the buffers
 char receive_buffer[socket_buffer_size];
@@ -112,9 +115,13 @@ source_t& select_source_from_sql(std::size_t source_id) {
 // Create the controller handling the requests
 display_controller controller;
 
-void cleanup();
+void cleanup() {
+    set_led_off();
+    close(socket_fd);
+    unlink("/tmp/asgard_socket");
+}
 
-void handle_command(const std::string& message, sockaddr_un& client_address, socklen_t& address_length) {
+void handle_command(const std::string& message, int socket_fd) {
     std::stringstream message_ss(message);
 
     std::string command;
@@ -128,13 +135,12 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         source.sensors_counter   = 0;
         source.actuators_counter = 0;
         source.actions_counter   = 0;
-        source.addr              = client_address;
 
         message_ss >> source.name;
 
         // Give the source id back to the client
-        auto nbytes = snprintf(write_buffer, 4096, "%d", (int) source.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        auto nbytes = snprintf(write_buffer, 4096, "%d", (int)source.id);
+        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
         }
@@ -176,7 +182,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         // Give the sensor id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int) sensor.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
         }
@@ -224,7 +230,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         // Give the action id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", action.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
         }
@@ -267,7 +273,7 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
 
         // Give the sensor id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int) actuator.id);
-        if (sendto(socket_fd, write_buffer, nbytes, 0, (struct sockaddr*)&client_address, address_length) < 0) {
+        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
             std::perror("asgard: server: failed to answer");
             return;
         }
@@ -333,54 +339,76 @@ void handle_command(const std::string& message, sockaddr_un& client_address, soc
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
     }
 }
+void *connection_handler(void *socket_fd) {
+    //Get the socket descriptor
+    int sock = *(int*)socket_fd;
+    int read_size;
+
+    //Receive a message from client
+    while((read_size = recv(sock, receive_buffer, 2000, 0)) > 0) {
+        receive_buffer[read_size] = '\0';
+        handle_command(receive_buffer, sock);
+    }
+     
+    if(read_size == 0) {
+        std::cout << "Client disconnected" << std::endl;
+        fflush(stdout);
+    }
+    else if(read_size == -1) {
+        std::perror("recv failed");
+    }
+         
+    //Free the socket pointer
+    delete (int*)socket_fd;
+
+    return 0;
+}
 
 int run(){
-    // Create the socket
-    socket_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if(socket_fd < 0){
-        std::cerr << "socket() failed" << std::endl;
+   //Create socket
+    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socket_fd == -1) {
+        std::cout << "Could not create socket" << std::endl;
+    }
+    std::cout << "Socket created" << std::endl;
+     
+    //Prepare the sockaddr_in structure
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons(8888);
+     
+    //Bind
+    if (::bind(socket_fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
+        //print the error message
+        std::perror("bind failed. Error");
         return 1;
     }
+    puts("bind done");
+     
+    //Listen
+    listen(socket_fd, 3);
+     
+    //Accept and incoming connection
+    std::cout << "Waiting for incoming connections..." << std::endl;
+    socket_size = sizeof(struct sockaddr_in);
+    while((client_sock = accept(socket_fd, (struct sockaddr *)&client, (socklen_t*)&socket_size))) {
+        std::cout << "Connection accepted" << std::endl;
+         
+        new_sock = new int;
+        *new_sock = client_sock;
 
-    // Init the server address
-    struct sockaddr_un server_address;
-    memset(&server_address, 0, sizeof(struct sockaddr_un));
-    server_address.sun_family = AF_UNIX;
-    snprintf(server_address.sun_path, UNIX_PATH_MAX, asgard::get_string_value(config, "server_socket_path").c_str());
-
-    // Unlink the socket file
-    unlink(asgard::get_string_value(config, "server_socket_path").c_str());
-
-    // Bind
-    if (::bind(socket_fd, (struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        std::cerr << "bind() failed" << std::endl;
-        close(socket_fd);
-        return 1;
+        threads.push_back(std::thread(connection_handler, new_sock));
+        std::cout << "Handler assigned" << std::endl;
     }
-
-    std::cout << "asgard: Server started" << std::endl;
-
-    while (true) {
-        sockaddr_un client_address;
-        socklen_t address_length = sizeof(struct sockaddr_un);
-
-        // Wait for one message
-        auto bytes_received = recvfrom(socket_fd, receive_buffer, socket_buffer_size-1, 0, (struct sockaddr *) &client_address, &address_length);
-        receive_buffer[bytes_received] = '\0';
-
-        // Handle the message
-        handle_command(receive_buffer, client_address, address_length);
+     
+    if (client_sock < 0) {
+        std::perror("accept failed");
+        return 1;
     }
 
     cleanup();
 
     return 0;
-}
-
-void cleanup() {
-    set_led_off();
-    close(socket_fd);
-    unlink("/tmp/asgard_socket");
 }
 
 void terminate(int /*signo*/) {
