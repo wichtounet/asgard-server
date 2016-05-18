@@ -8,6 +8,6 @@
 #include<sys/socket.h>
 #include<sys/un.h>
 
-sockaddr_un& source_addr_from_sql(int id_sql);
+int source_addr_from_sql(int id_sql);
 
-bool send_message(sockaddr_un& client_address, const std::string& message);
+bool send_message(int client_address, const std::string& message);
