@@ -350,14 +350,14 @@ void *connection_handler(void *socket_d) {
         receive_buffer[read_size] = '\0';
         handle_command(receive_buffer, sock);
     }
-     
+
     if(read_size == 0) {
         fflush(stdout);
     }
     else if(read_size == -1) {
         std::perror("recv failed");
     }
-         
+
     //Free the socket pointer
     delete (int*)socket_d;
 
@@ -370,33 +370,33 @@ int run(){
     if (socket_desc == -1) {
         std::cout << "Could not create socket" << std::endl;
     }
-     
+
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(8888);
-     
+    server.sin_port = htons(asgard::get_int_value(config, "server_socket_port"));
+
     //Bind
     if (::bind(socket_desc, (struct sockaddr *)&server, sizeof(server)) < 0) {
         //print the error message
         std::perror("bind failed. Error");
         return 1;
     }
-     
+
     //Listen
     listen(socket_desc, 3);
-     
+
     //Accept for incoming connection
     int socket_size = sizeof(struct sockaddr_in);
     int client_sock;
     while((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&socket_size))) {
-         
+
         int *new_sock = new int;
         *new_sock = client_sock;
 
         threads.push_back(std::thread(connection_handler, new_sock));
     }
-     
+
     if (client_sock < 0) {
         std::perror("accept failed");
         return 1;
