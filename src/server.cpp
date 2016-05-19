@@ -345,21 +345,13 @@ bool handle_command(const std::string& message, int socket_fd) {
 
     return true;
 }
-void* connection_handler(void *socket_d) {
-    //Get the socket descriptor
-    int sock = *(int*)socket_d;
-    int read_size;
 
-    while(asgard::receive_message(sock, receive_buffer, socket_buffer_size)){
-        if(!handle_command(receive_buffer, sock)){
+void connection_handler(int client_socket_fd) {
+    while(asgard::receive_message(client_socket_fd, receive_buffer, socket_buffer_size)){
+        if(!handle_command(receive_buffer, client_socket_fd)){
             break;
         }
     }
-
-    //Free the socket pointer
-    delete (int*)socket_d;
-
-    return 0;
 }
 
 int run(){
@@ -386,16 +378,12 @@ int run(){
 
     //Accept for incoming connection
     int socket_size = sizeof(struct sockaddr_in);
-    int client_sock;
-    while((client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&socket_size))) {
-
-        int *new_sock = new int;
-        *new_sock = client_sock;
-
-        threads.push_back(std::thread(connection_handler, new_sock));
+    int client_socket_fd;
+    while((client_socket_fd = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&socket_size))) {
+        threads.push_back(std::thread(connection_handler, client_socket_fd));
     }
 
-    if (client_sock < 0) {
+    if (client_socket_fd < 0) {
         std::perror("accept failed");
         return 1;
     }
