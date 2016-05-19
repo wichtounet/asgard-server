@@ -30,6 +30,7 @@
 
 #include "asgard/config.hpp"
 #include "asgard/utils.hpp"
+#include "asgard/network.hpp"
 
 #include "db.hpp"
 #include "led.hpp"
@@ -121,7 +122,7 @@ void cleanup() {
     unlink("/tmp/asgard_socket");
 }
 
-void handle_command(const std::string& message, int socket_fd) {
+bool handle_command(const std::string& message, int socket_fd) {
     std::stringstream message_ss(message);
 
     std::string command;
@@ -141,9 +142,9 @@ void handle_command(const std::string& message, int socket_fd) {
 
         // Give the source id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int)source.id);
-        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
+        if (!asgard::send_message(socket_fd, write_buffer, nbytes)) {
             std::perror("asgard: server: failed to answer");
-            return;
+            return true;
         }
 
         try {
@@ -167,6 +168,8 @@ void handle_command(const std::string& message, int socket_fd) {
                       }), sources.end());
 
         std::cout << "asgard: unregistered source " << source_id << std::endl;
+
+        return false;
     } else if (command == "REG_SENSOR") {
         int source_id;
         message_ss >> source_id;
@@ -183,9 +186,9 @@ void handle_command(const std::string& message, int socket_fd) {
 
         // Give the sensor id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int) sensor.id);
-        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
+        if (!asgard::send_message(socket_fd, write_buffer, nbytes)) {
             std::perror("asgard: server: failed to answer");
-            return;
+            return true;
         }
 
         if(db_exec_dml(
@@ -231,9 +234,9 @@ void handle_command(const std::string& message, int socket_fd) {
 
         // Give the action id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", action.id);
-        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
+        if (!asgard::send_message(socket_fd, write_buffer, nbytes)) {
             std::perror("asgard: server: failed to answer");
-            return;
+            return true;
         }
 
         db_exec_dml(
@@ -274,9 +277,9 @@ void handle_command(const std::string& message, int socket_fd) {
 
         // Give the sensor id back to the client
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int) actuator.id);
-        if (send(socket_fd, write_buffer, nbytes, 0) < 0) {
+        if (!asgard::send_message(socket_fd, write_buffer, nbytes)) {
             std::perror("asgard: server: failed to answer");
-            return;
+            return true;
         }
 
         if(db_exec_dml(get_db(), "insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
@@ -339,23 +342,18 @@ void handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
     }
+
+    return true;
 }
-void *connection_handler(void *socket_d) {
+void* connection_handler(void *socket_d) {
     //Get the socket descriptor
     int sock = *(int*)socket_d;
     int read_size;
 
-    //Receive a message from client
-    while((read_size = recv(sock, receive_buffer, 2000, 0)) > 0) {
-        receive_buffer[read_size] = '\0';
-        handle_command(receive_buffer, sock);
-    }
-
-    if(read_size == 0) {
-        fflush(stdout);
-    }
-    else if(read_size == -1) {
-        std::perror("recv failed");
+    while(asgard::receive_message(sock, receive_buffer, socket_buffer_size)){
+        if(!handle_command(receive_buffer, sock)){
+            break;
+        }
     }
 
     //Free the socket pointer
@@ -421,10 +419,9 @@ int source_addr_from_sql(int id_sql){
 }
 
 bool send_message(int client_address, const std::string& message){
-
     auto nbytes = snprintf(write_buffer, 4096, "%s", message.c_str());
 
-    if (send(client_address, write_buffer, nbytes, 0) < 0) {
+    if (!asgard::send_message(client_address, write_buffer, nbytes)) {
         std::perror("asgard: server: failed to send message");
         return false;
     }
