@@ -406,7 +406,7 @@ int source_addr_from_sql(int id_sql){
     return source.socket;
 }
 
-bool send_message(int client_address, const std::string& message){
+bool send_to_driver(int client_address, const std::string& message){
     auto nbytes = snprintf(write_buffer, 4096, "%s", message.c_str());
 
     if (!asgard::send_message(client_address, write_buffer, nbytes)) {

@@ -467,7 +467,7 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
 
             auto client_addr = source_addr_from_sql(pk_source);
 
-            send_message(client_addr, "ACTION " + action_name);
+            send_to_driver(client_addr, "ACTION " + action_name);
         }
     }
 }

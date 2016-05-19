@@ -10,4 +10,4 @@
 
 int source_addr_from_sql(int id_sql);
 
-bool send_message(int client_address, const std::string& message);
+bool send_to_driver(int client_address, const std::string& message);
