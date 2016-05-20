@@ -420,31 +420,33 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
     }
 }
 
-void display_controller::display_actions(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    response << "<ul>";
+void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    
+    response << header << std::endl
+             << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
+             << "<div id=\"container\"><div id=\"menu\"><ul>" << std::endl;
 
-    for (auto& data : get_db().execQuery("select pk_action, fk_source, name, type from action;")) {
-        int action_pk = data.getIntField(0);
-        int source_pk = data.getIntField(1);
-        std::string action_name = data.fieldValue(2);
-        std::string action_type = data.fieldValue(3);
+    for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
+        int source_pk = data.getIntField(0);
+        std::string action_name = data.fieldValue(1);
+        std::string action_type = data.fieldValue(2);
 
         CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
         std::string source_name = source_query.fieldValue(0);
 
         if (action_type == "SIMPLE") {
-            response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>";
+            response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>" << std::endl;
         } else {
-            response << "<li>" << action_name << "</li>";
+            response << "<li><form action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></li></form>" << std::endl;
         }
     }
 
-    response << "</ul>";
+    response << "</ul></div></div>" << std::endl
+             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
 void display_controller::action(Mongoose::Request& request, Mongoose::StreamResponse& response) {
     std::string url = request.getUrl();
-    std::cout << url << std::endl;
 
     auto start_source = url.find("/", 1) + 1;
     auto end_source = url.find("/", start_source);
@@ -460,14 +462,20 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
     if(!source_query.eof()){
         int pk_source = source_query.getIntField(0);
 
-        CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+        CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action, type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+
+        std::string action_type = action_query.fieldValue(1);
 
         if(!action_query.eof()){
-            int pk_action = action_query.getIntField(0);
 
-            auto client_addr = source_addr_from_sql(pk_source);
+                auto client_addr = source_addr_from_sql(pk_source);
 
-            send_to_driver(client_addr, "ACTION " + action_name);
+            if(action_type == "SIMPLE"){
+                send_to_driver(client_addr, "ACTION " + action_name);
+            } else {
+                send_to_driver(client_addr, "ACTION " + action_name + " " + request.get("value"));
+
+            }
         }
     }
 }
