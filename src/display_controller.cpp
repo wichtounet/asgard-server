@@ -65,7 +65,8 @@ function load_menu(name) {
 )=====";
 
 void display_controller::display_controller::display_menu(Mongoose::StreamResponse& response) {
-    response << "<ul class=\"menu\"><li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
+    response << "<ul class=\"menu\"><li onclick=\"location.href='/actions'\">Actions Page</li>" << std::endl
+             << "<li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
              << "<p>Drivers registered :</p>" << std::endl
              << "<ul class=\"menu\">" << std::endl;
 
@@ -421,10 +422,12 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
 }
 
 void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
-    
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
-             << "<div id=\"container\"><div id=\"menu\"><ul>" << std::endl;
+             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Menu</li></ul>" << std::endl
+             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li>Rules Page</li></ul>" << std::endl
+             << "</div></div>" << std::endl
+             << "<div id=\"main\" style=\"float: left; margin-top: 20px;\"><ul>" << std::endl;
 
     for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
         int source_pk = data.getIntField(0);
@@ -462,9 +465,9 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
     if(!source_query.eof()){
         int pk_source = source_query.getIntField(0);
 
-        CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action, type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+        CppSQLite3Query action_query = db_exec_query(get_db(), "select type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
 
-        std::string action_type = action_query.fieldValue(1);
+        std::string action_type = action_query.fieldValue(0);
 
         if(!action_query.eof()){
 
@@ -478,6 +481,12 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
             }
         }
     }
+    response << "<!DOCTYPE HTML><html>" << std::endl
+             << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
+             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/actions\"</script>" << std::endl
+             << "<title>Page Redirection</title></head>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/actions'>following link</a>" << std::endl
+             << "</body></html>" << std::endl;
 }
 
 //This will be called automatically
