@@ -39,6 +39,7 @@ ul.menu li:first-child:last-child{border-radius: 10px;}
 .myTabs{float: right !important; font-size: 14px;}
 .menu, .led{padding: 0px 10px 0px 10px;}
 .button{text-align: center;}
+.rule{display: inline-block;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
 border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
 #container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 5px 5px; overflow: hidden;}
@@ -424,10 +425,11 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
 void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
-             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Menu</li></ul>" << std::endl
+             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Actions Menu</li></ul>" << std::endl
              << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li>Rules Page</li></ul>" << std::endl
              << "</div></div>" << std::endl
-             << "<div id=\"main\" style=\"float: left; margin-top: 20px;\"><ul>" << std::endl;
+             << "<div id=\"main\"><div class=\"tabs\">" << std::endl
+             << "<ul><li class=\"title\">Actions available</li></ul><ul>" << std::endl;
 
     for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
         int source_pk = data.getIntField(0);
@@ -440,11 +442,57 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
         if (action_type == "SIMPLE") {
             response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>" << std::endl;
         } else {
-            response << "<li><form action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></li></form>" << std::endl;
+            response << "<li><FORM action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></FORM></li>" << std::endl;
         }
     }
 
-    response << "</ul></div></div>" << std::endl
+    response << "</ul></div>" << std::endl
+             << "<div class=\"tabs\">" << std::endl
+             << "<ul><li class=\"title\">Rules page</li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
+             << "<li><div class=\"rule\"><FORM><SELECT name=\"source\" size=\"1\">" << std::endl
+             << "<OPTION>dht11 (Temperature)" << std::endl
+             << "<OPTION>dht11 (Humidity)" << std::endl
+             << "<OPTION>rf_weather (Temperature)" << std::endl
+             << "<OPTION>rf_weather (Humidity)" << std::endl
+             << "<OPTION>rf_button" << std::endl
+             << "<OPTION>ir_button" << std::endl
+             << "<OPTION>cpu" << std::endl
+             << "</SELECT></FORM></div>" << std::endl
+             << "<div class=\"rule\"><FORM><SELECT name=\"operator\" size=\"1\">" << std::endl
+             << "<OPTION>=" << std::endl
+             << "<OPTION>>" << std::endl
+             << "<OPTION><" << std::endl
+             << "</SELECT></FORM></div>" << std::endl
+             << "<div class=\"rule\"><FORM><SELECT name=\"condition_value\" size=\"1\">" << std::endl
+             << "<OPTION>0" << std::endl
+             << "<OPTION>5" << std::endl
+             << "<OPTION>10" << std::endl
+             << "<OPTION>15" << std::endl
+             << "<OPTION>20" << std::endl
+             << "<OPTION>25" << std::endl
+             << "<OPTION>30" << std::endl
+             << "</SELECT></FORM></div></li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
+             << "<li><div class=\"rule\"><FORM><SELECT name=\"action\" size=\"1\">" << std::endl
+             << "<OPTION>echo" << std::endl
+             << "<OPTION>wake" << std::endl
+             << "<OPTION>windows" << std::endl
+             << "<OPTION>play" << std::endl
+             << "<OPTION>previous" << std::endl
+             << "<OPTION>next" << std::endl
+             << "</SELECT></FORM></div>" << std::endl
+             << "<div class=\"rule\"><FORM><SELECT name=\"action_value\" size=\"1\">" << std::endl
+             << "<OPTION>-" << std::endl
+             << "<OPTION>0" << std::endl
+             << "<OPTION>1" << std::endl
+             << "<OPTION>2" << std::endl
+             << "<OPTION>3" << std::endl
+             << "<OPTION>4" << std::endl
+             << "<OPTION>5" << std::endl
+             << "</SELECT></FORM></div></li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><FORM method=\"GET\"><input type=\"submit\"></FORM></li></ul>" << std::endl
+             << "</div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
@@ -466,18 +514,14 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
         int pk_source = source_query.getIntField(0);
 
         CppSQLite3Query action_query = db_exec_query(get_db(), "select type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
-
         std::string action_type = action_query.fieldValue(0);
 
         if(!action_query.eof()){
-
-                auto client_addr = source_addr_from_sql(pk_source);
-
+            auto client_addr = source_addr_from_sql(pk_source);
             if(action_type == "SIMPLE"){
                 send_to_driver(client_addr, "ACTION " + action_name);
             } else {
                 send_to_driver(client_addr, "ACTION " + action_name + " " + request.get("value"));
-
             }
         }
     }
