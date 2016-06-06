@@ -240,8 +240,7 @@ bool handle_command(const std::string& message, int socket_fd) {
         }
 
         db_exec_dml(
-            get_db(),
-            "insert into action(type, name, fk_source) select \"%s\", \"%s\","
+            get_db(), "insert into action(type, name, fk_source) select \"%s\", \"%s\","
             "%d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
             action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
 

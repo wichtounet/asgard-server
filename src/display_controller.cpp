@@ -67,6 +67,7 @@ function load_menu(name) {
 
 void display_controller::display_controller::display_menu(Mongoose::StreamResponse& response) {
     response << "<ul class=\"menu\"><li onclick=\"location.href='/actions'\">Actions Page</li>" << std::endl
+             << "<li onclick=\"location.href='/rules'\">Rules Page</li>" << std::endl
              << "<li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
              << "<p>Drivers registered :</p>" << std::endl
              << "<ul class=\"menu\">" << std::endl;
@@ -426,10 +427,10 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
              << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Actions Menu</li></ul>" << std::endl
-             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li>Rules Page</li></ul>" << std::endl
+             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/rules'\">Rules Page</li></ul>" << std::endl
              << "</div></div>" << std::endl
              << "<div id=\"main\"><div class=\"tabs\">" << std::endl
-             << "<ul><li class=\"title\">Actions available</li></ul><ul>" << std::endl;
+             << "<ul><li class=\"title\">Actions Available</li></ul><ul>" << std::endl;
 
     for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
         int source_pk = data.getIntField(0);
@@ -446,11 +447,20 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
         }
     }
 
-    response << "</ul></div>" << std::endl
-             << "<div class=\"tabs\">" << std::endl
-             << "<ul><li class=\"title\">Rules page</li></ul>" << std::endl
+    response << "</ul></div></div></div>" << std::endl
+             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+}
+
+void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    response << header << std::endl
+             << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
+             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Rules Menu</li></ul>" << std::endl
+             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/actions'\">Actions Page</li></ul>" << std::endl
+             << "</div></div>" << std::endl
+             << "<div id=\"main\"><div class=\"tabs\">" << std::endl
+             << "<ul><li class=\"title\">Rules page</li></ul><FORM method=\"GET\">" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
-             << "<li><div class=\"rule\"><FORM><SELECT name=\"source\" size=\"1\">" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl
              << "<OPTION>dht11 (Temperature)" << std::endl
              << "<OPTION>dht11 (Humidity)" << std::endl
              << "<OPTION>rf_weather (Temperature)" << std::endl
@@ -458,41 +468,35 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
              << "<OPTION>rf_button" << std::endl
              << "<OPTION>ir_button" << std::endl
              << "<OPTION>cpu" << std::endl
-             << "</SELECT></FORM></div>" << std::endl
-             << "<div class=\"rule\"><FORM><SELECT name=\"operator\" size=\"1\">" << std::endl
+             << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><SELECT name=\"operator\" size=\"1\">" << std::endl
              << "<OPTION>=" << std::endl
              << "<OPTION>>" << std::endl
              << "<OPTION><" << std::endl
-             << "</SELECT></FORM></div>" << std::endl
-             << "<div class=\"rule\"><FORM><SELECT name=\"condition_value\" size=\"1\">" << std::endl
+             << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><SELECT name=\"condition_value\" size=\"1\">" << std::endl
              << "<OPTION>0" << std::endl
+             << "<OPTION>1" << std::endl
              << "<OPTION>5" << std::endl
              << "<OPTION>10" << std::endl
              << "<OPTION>15" << std::endl
              << "<OPTION>20" << std::endl
              << "<OPTION>25" << std::endl
              << "<OPTION>30" << std::endl
-             << "</SELECT></FORM></div></li></ul>" << std::endl
+             << "</SELECT></div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
-             << "<li><div class=\"rule\"><FORM><SELECT name=\"action\" size=\"1\">" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl
              << "<OPTION>echo" << std::endl
              << "<OPTION>wake" << std::endl
              << "<OPTION>windows" << std::endl
              << "<OPTION>play" << std::endl
              << "<OPTION>previous" << std::endl
              << "<OPTION>next" << std::endl
-             << "</SELECT></FORM></div>" << std::endl
-             << "<div class=\"rule\"><FORM><SELECT name=\"action_value\" size=\"1\">" << std::endl
-             << "<OPTION>-" << std::endl
-             << "<OPTION>0" << std::endl
-             << "<OPTION>1" << std::endl
-             << "<OPTION>2" << std::endl
-             << "<OPTION>3" << std::endl
-             << "<OPTION>4" << std::endl
-             << "<OPTION>5" << std::endl
+             << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
              << "</SELECT></FORM></div></li></ul>" << std::endl
-             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><FORM method=\"GET\"><input type=\"submit\"></FORM></li></ul>" << std::endl
-             << "</div></div></div>" << std::endl
+             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input type=\"submit\">" << std::endl
+             << "</li></ul></FORM></div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
@@ -533,6 +537,17 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
              << "</body></html>" << std::endl;
 }
 
+void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    // sql insert from get value
+
+    response << "<!DOCTYPE HTML><html>" << std::endl
+             << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
+             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/actions\"</script>" << std::endl
+             << "<title>Page Redirection</title></head>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/actions'>following link</a>" << std::endl
+             << "</body></html>" << std::endl;
+}
+
 //This will be called automatically
 void display_controller::display_controller::setup() {
     addRoute<display_controller>("GET", "/", &display_controller::display);
@@ -541,6 +556,8 @@ void display_controller::display_controller::setup() {
     addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
 
     addRoute<display_controller>("GET", "/actions", &display_controller::display_actions);
+    addRoute<display_controller>("GET", "/rules", &display_controller::display_rules);
+    addRoute<display_controller>("GET", "/addrule", &display_controller::add_rule);
 
     //TODO The routes should be added dynamically when we register a new source or sensor or actuator
     //Otherwise the new sensors will not show unless we restart the server
