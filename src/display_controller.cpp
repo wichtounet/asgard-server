@@ -458,45 +458,38 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/actions'\">Actions Page</li></ul>" << std::endl
              << "</div></div>" << std::endl
              << "<div id=\"main\"><div class=\"tabs\">" << std::endl
-             << "<ul><li class=\"title\">Rules page</li></ul><FORM method=\"GET\">" << std::endl
+             << "<ul><li class=\"title\">Add Rules</li></ul><FORM method=\"GET\">" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl
-             << "<OPTION>dht11 (Temperature)" << std::endl
-             << "<OPTION>dht11 (Humidity)" << std::endl
-             << "<OPTION>rf_weather (Temperature)" << std::endl
-             << "<OPTION>rf_weather (Humidity)" << std::endl
+             << "<OPTION>cpu (TEMPERATURE)" << std::endl
+             << "<OPTION>local (TEMPERATURE)" << std::endl
+             << "<OPTION>local (HUMIDITY)" << std::endl
+             << "<OPTION>rf_weather (TEMPERATURE)" << std::endl
+             << "<OPTION>rf_weather (HUMIDITY)" << std::endl
              << "<OPTION>rf_button" << std::endl
              << "<OPTION>ir_button" << std::endl
-             << "<OPTION>cpu" << std::endl
              << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><SELECT name=\"operator\" size=\"1\">" << std::endl
              << "<OPTION>=" << std::endl
              << "<OPTION>>" << std::endl
              << "<OPTION><" << std::endl
              << "</SELECT></div>" << std::endl
-             << "<div class=\"rule\"><SELECT name=\"condition_value\" size=\"1\">" << std::endl
-             << "<OPTION>0" << std::endl
-             << "<OPTION>1" << std::endl
-             << "<OPTION>5" << std::endl
-             << "<OPTION>10" << std::endl
-             << "<OPTION>15" << std::endl
-             << "<OPTION>20" << std::endl
-             << "<OPTION>25" << std::endl
-             << "<OPTION>30" << std::endl
-             << "</SELECT></div></li></ul>" << std::endl
+             << "<div class=\"rule\"><input name=\"condition_value\" type=\"text\">" << std::endl
+             << "</div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl
              << "<OPTION>echo" << std::endl
-             << "<OPTION>wake" << std::endl
-             << "<OPTION>windows" << std::endl
-             << "<OPTION>play" << std::endl
-             << "<OPTION>previous" << std::endl
-             << "<OPTION>next" << std::endl
+             << "<OPTION>link" << std::endl
              << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
-             << "</SELECT></FORM></div></li></ul>" << std::endl
+             << "</div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input type=\"submit\">" << std::endl
-             << "</li></ul></FORM></div></div></div>" << std::endl
+             << "</li></ul></FORM></div>" << std::endl
+             << "<div class=\"tabs\"><ul>" << std::endl
+             << "<li class=\"title\">Actual Rules</li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li>1st Rule: You do not talk about FIGHT CLUB.</li>" << std::endl
+             << "<li>2nd Rule: You DO NOT talk about FIGHT CLUB.</li></ul>" << std::endl
+             << "</div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
