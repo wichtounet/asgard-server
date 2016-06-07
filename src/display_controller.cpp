@@ -460,15 +460,25 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<div id=\"main\"><div class=\"tabs\">" << std::endl
              << "<ul><li class=\"title\">Add Rules</li></ul><FORM method=\"GET\">" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
-             << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl
-             << "<OPTION>cpu (TEMPERATURE)" << std::endl
-             << "<OPTION>local (TEMPERATURE)" << std::endl
-             << "<OPTION>local (HUMIDITY)" << std::endl
-             << "<OPTION>rf_weather (TEMPERATURE)" << std::endl
-             << "<OPTION>rf_weather (HUMIDITY)" << std::endl
-             << "<OPTION>rf_button" << std::endl
-             << "<OPTION>ir_button" << std::endl
-             << "</SELECT></div>" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
+
+    CppSQLite3Query sensor_query = get_db().execQuery("select name, type from sensor order by name;");
+    while (!sensor_query.eof()) {
+        std::string sensor_name = sensor_query.fieldValue(0);
+        std::string sensor_type = sensor_query.fieldValue(1);
+        response << "<OPTION>" << sensor_name << " (" << sensor_type << ")" << std::endl;
+        sensor_query.nextRow();
+    }
+
+
+    CppSQLite3Query actuator_query = get_db().execQuery("select name from actuator order by name;");
+    while (!actuator_query.eof()) {
+        std::string actuator_name = actuator_query.fieldValue(0);
+        response << "<OPTION>" << actuator_name << std::endl;
+        actuator_query.nextRow();
+    }
+
+    response << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><SELECT name=\"operator\" size=\"1\">" << std::endl
              << "<OPTION>=" << std::endl
              << "<OPTION>>" << std::endl
@@ -477,10 +487,18 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<div class=\"rule\"><input name=\"condition_value\" type=\"text\">" << std::endl
              << "</div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
-             << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl
-             << "<OPTION>echo" << std::endl
-             << "<OPTION>link" << std::endl
-             << "</SELECT></div>" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
+
+
+    CppSQLite3Query action_query = get_db().execQuery("select name, type from action order by name;");
+    while (!action_query.eof()) {
+        std::string action_name = action_query.fieldValue(0);
+        std::string action_type = action_query.fieldValue(1);
+        response << "<OPTION>" << action_name << " (" << action_type << ")" << std::endl;
+        action_query.nextRow();
+    }
+
+    response << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
              << "</div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input type=\"submit\">" << std::endl
