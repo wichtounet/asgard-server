@@ -458,7 +458,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/actions'\">Actions Page</li></ul>" << std::endl
              << "</div></div>" << std::endl
              << "<div id=\"main\"><div class=\"tabs\">" << std::endl
-             << "<ul><li class=\"title\">Add Rules</li></ul><FORM method=\"GET\">" << std::endl
+             << "<ul><li class=\"title\">Add Rules</li></ul><FORM action=\"/addrule\" method=\"GET\">" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
 
@@ -549,13 +549,29 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
 }
 
 void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    // sql insert from get value
+    std::string name = request.get("source");
+    std::string operator = request.get("operator");
+    std::string condition_value = request.get("condition_value");
+
+    db_exec_dml(get_db(),
+        "insert into condition_test(name,operator,value) select \"%s\",\"%s\",\"%s\" where not exists(select 1 from condition_test where name=\"%s\" and operator=\"%s\" and value=\"%s\");",
+        name.c_str(), operator.c_str(), condition_value.c_str(), name.c_str(), operator.c_str(), condition_value.c_str()
+    );
+       
+
+    std::string action = request.get("action");
+    std::string action_value = request.get("action_value");
+
+    db_exec_dml(get_db(),
+        "insert into rule_test(action, value) select \"%s\", \"%s\" where not exists(select 1 from rule_test where action=\"%s\" and value=\"%s\");",
+        action.c_str(), action_value.c_str(), action.c_str(), action_value.c_str()
+    );
 
     response << "<!DOCTYPE HTML><html>" << std::endl
              << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
-             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/actions\"</script>" << std::endl
+             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/rules\"</script>" << std::endl
              << "<title>Page Redirection</title></head>" << std::endl
-             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/actions'>following link</a>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/rules'>following link</a>" << std::endl
              << "</body></html>" << std::endl;
 }
 
