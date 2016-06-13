@@ -40,6 +40,7 @@ ul.menu li:first-child:last-child{border-radius: 10px;}
 .menu, .led{padding: 0px 10px 0px 10px;}
 .button{text-align: center;}
 .rule{display: inline-block;}
+.ruleTable{display: inline-block; margin-right: 50px; text-align: center;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
 border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
 #container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 5px 5px; overflow: hidden;}
@@ -446,7 +447,6 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
             response << "<li><FORM action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></FORM></li>" << std::endl;
         }
     }
-
     response << "</ul></div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
@@ -463,6 +463,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
 
     CppSQLite3Query sensor_query = get_db().execQuery("select name, type from sensor order by name;");
+
     while (!sensor_query.eof()) {
         std::string sensor_name = sensor_query.fieldValue(0);
         std::string sensor_type = sensor_query.fieldValue(1);
@@ -470,8 +471,8 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         sensor_query.nextRow();
     }
 
-
     CppSQLite3Query actuator_query = get_db().execQuery("select name from actuator order by name;");
+    
     while (!actuator_query.eof()) {
         std::string actuator_name = actuator_query.fieldValue(0);
         response << "<OPTION>" << actuator_name << std::endl;
@@ -491,6 +492,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 
 
     CppSQLite3Query action_query = get_db().execQuery("select name, type from action order by name;");
+    
     while (!action_query.eof()) {
         std::string action_name = action_query.fieldValue(0);
         std::string action_type = action_query.fieldValue(1);
@@ -505,9 +507,32 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "</li></ul></FORM></div>" << std::endl
              << "<div class=\"tabs\"><ul>" << std::endl
              << "<li class=\"title\">Actual Rules</li></ul>" << std::endl
-             << "<ul style=\"list-style-type: none;\"><li>1st Rule: You do not talk about FIGHT CLUB.</li>" << std::endl
-             << "<li>2nd Rule: You DO NOT talk about FIGHT CLUB.</li></ul>" << std::endl
-             << "</div></div></div>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8 class=\"ruleTable\">" << std::endl
+             << "<tr><th colspan=3>Conditions (When)</th></tr>" << std::endl;
+
+    CppSQLite3Query condition_query = get_db().execQuery("select name, operator, value from condition_test order by name;");
+    
+    while (!condition_query.eof()) {
+        std::string condition_name = condition_query.fieldValue(0);
+        std::string condition_operator = condition_query.fieldValue(1);
+        std::string condition_value = condition_query.fieldValue(2);
+        response << "<tr><td>" << condition_name << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+        condition_query.nextRow();
+    }
+
+    response << "</table><table cellpadding=8 class=\"ruleTable\">" << std::endl
+             << "<tr><th colspan=2>Actions (Do)</th></tr>" << std::endl;
+
+    CppSQLite3Query do_query = get_db().execQuery("select action, value from rule_test order by action;");
+    
+    while (!do_query.eof()) {
+        std::string do_action = do_query.fieldValue(0);
+        std::string do_value = do_query.fieldValue(1);
+        response << "<tr><td>" << do_action << " :</td><td>" << do_value << "</td></tr>" << std::endl;
+        do_query.nextRow();
+    }
+
+    response << "</table></li></ul></div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
@@ -550,14 +575,13 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
 
 void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response) {
     std::string name = request.get("source");
-    std::string operator = request.get("operator");
+    std::string symbole = request.get("operator");
     std::string condition_value = request.get("condition_value");
 
     db_exec_dml(get_db(),
         "insert into condition_test(name,operator,value) select \"%s\",\"%s\",\"%s\" where not exists(select 1 from condition_test where name=\"%s\" and operator=\"%s\" and value=\"%s\");",
-        name.c_str(), operator.c_str(), condition_value.c_str(), name.c_str(), operator.c_str(), condition_value.c_str()
-    );
-       
+        name.c_str(), symbole.c_str(), condition_value.c_str(), name.c_str(), symbole.c_str(), condition_value.c_str()
+    );     
 
     std::string action = request.get("action");
     std::string action_value = request.get("action_value");
@@ -591,7 +615,6 @@ void display_controller::display_controller::setup() {
 
     try {
         // Register the sensor data and script pages
-
         for(auto& data : get_db().execQuery("select name, type, pk_sensor from sensor order by name;")){
             std::string sensor_name = data.fieldValue(0);
             std::string sensor_type = data.fieldValue(1);
@@ -609,7 +632,6 @@ void display_controller::display_controller::setup() {
         }
 
         // Register the actuator data and script pages
-
         for(auto& data : get_db().execQuery("select name, pk_actuator from actuator order by name;")){
             std::string url = std::string("/") + data.fieldValue(0);
             int actuator_pk = data.getIntField(1);
@@ -623,7 +645,6 @@ void display_controller::display_controller::setup() {
         }
 
         // Register the action pages
-
         for(auto& data : get_db().execQuery("select name, fk_source from action;")){
             std::string action_name = data.fieldValue(0);
             int fk_source = data.getIntField(1);
