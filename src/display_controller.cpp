@@ -462,20 +462,22 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
 
-    CppSQLite3Query sensor_query = get_db().execQuery("select name, type from sensor order by name;");
+    CppSQLite3Query sensor_query = get_db().execQuery("select pk_sensor, name, type from sensor order by name;");
 
     while (!sensor_query.eof()) {
-        std::string sensor_name = sensor_query.fieldValue(0);
-        std::string sensor_type = sensor_query.fieldValue(1);
-        response << "<OPTION>" << sensor_name << " (" << sensor_type << ")" << std::endl;
+        int sensor_pk = sensor_query.getIntField(0);
+        std::string sensor_name = sensor_query.fieldValue(1);
+        std::string sensor_type = sensor_query.fieldValue(2);
+        response << "<OPTION value=\"s" << sensor_pk << "\">" << sensor_name << "(" << sensor_type << ")" << std::endl;
         sensor_query.nextRow();
     }
 
-    CppSQLite3Query actuator_query = get_db().execQuery("select name from actuator order by name;");
+    CppSQLite3Query actuator_query = get_db().execQuery("select pk_actuator, name from actuator order by name;");
     
     while (!actuator_query.eof()) {
-        std::string actuator_name = actuator_query.fieldValue(0);
-        response << "<OPTION>" << actuator_name << std::endl;
+        int actuator_pk = actuator_query.getIntField(0);
+        std::string actuator_name = actuator_query.fieldValue(1);
+        response << "<OPTION value=\"a" << actuator_pk << "\">" << actuator_name << std::endl;
         actuator_query.nextRow();
     }
 
@@ -491,12 +493,13 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
 
 
-    CppSQLite3Query action_query = get_db().execQuery("select name, type from action order by name;");
+    CppSQLite3Query action_query = get_db().execQuery("select pk_action, name, type from action order by name;");
     
     while (!action_query.eof()) {
-        std::string action_name = action_query.fieldValue(0);
-        std::string action_type = action_query.fieldValue(1);
-        response << "<OPTION>" << action_name << " (" << action_type << ")" << std::endl;
+        int action_pk = action_query.getIntField(0);
+        std::string action_name = action_query.fieldValue(1);
+        std::string action_type = action_query.fieldValue(2);
+        response << "<OPTION value=\"" << action_pk << "\">" << action_name << " (" << action_type << ")" << std::endl;
         action_query.nextRow();
     }
 
@@ -510,25 +513,25 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8 class=\"ruleTable\">" << std::endl
              << "<tr><th colspan=3>Conditions (When)</th></tr>" << std::endl;
 
-    CppSQLite3Query condition_query = get_db().execQuery("select name, operator, value from condition_test order by name;");
+    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value from condition order by pk_condition;");
     
     while (!condition_query.eof()) {
-        std::string condition_name = condition_query.fieldValue(0);
+        int condition_pk = condition_query.getIntField(0);
         std::string condition_operator = condition_query.fieldValue(1);
         std::string condition_value = condition_query.fieldValue(2);
-        response << "<tr><td>" << condition_name << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+        response << "<tr><td>" << condition_pk << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
         condition_query.nextRow();
     }
 
     response << "</table><table cellpadding=8 class=\"ruleTable\">" << std::endl
              << "<tr><th colspan=2>Actions (Do)</th></tr>" << std::endl;
 
-    CppSQLite3Query do_query = get_db().execQuery("select action, value from rule_test order by action;");
+    CppSQLite3Query rule_query = get_db().execQuery("select pk_rule, value from rule order by;");
     
-    while (!do_query.eof()) {
-        std::string do_action = do_query.fieldValue(0);
-        std::string do_value = do_query.fieldValue(1);
-        response << "<tr><td>" << do_action << " :</td><td>" << do_value << "</td></tr>" << std::endl;
+    while (!rule_query.eof()) {
+        int rule_pk = rule_query.getIntField(0);
+        std::string rule_value = rule_query.fieldValue(1);
+        response << "<tr><td>" << rule_pk << "</td><td>" << rule_value << "</td></tr>" << std::endl;
         do_query.nextRow();
     }
 
@@ -574,21 +577,29 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
 }
 
 void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::string name = request.get("source");
+    std::string source = request.get("source");
     std::string symbole = request.get("operator");
     std::string condition_value = request.get("condition_value");
 
-    db_exec_dml(get_db(),
-        "insert into condition_test(name,operator,value) select \"%s\",\"%s\",\"%s\" where not exists(select 1 from condition_test where name=\"%s\" and operator=\"%s\" and value=\"%s\");",
-        name.c_str(), symbole.c_str(), condition_value.c_str(), name.c_str(), symbole.c_str(), condition_value.c_str()
-    );     
+    if(source[0] == 's'){
+        db_exec_dml(get_db(),
+            "insert into condition(operator,value, fk_sensor) select \"%s\",\"%s\", %d;",
+            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
+        );
+    } else if(source[0] == 'a'){
+        db_exec_dml(get_db(),
+            "insert into condition(operator,value, fk_actuator) select \"%s\",\"%s\", %d;",
+            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
+        );
+    }
 
     std::string action = request.get("action");
     std::string action_value = request.get("action_value");
 
+
     db_exec_dml(get_db(),
-        "insert into rule_test(action, value) select \"%s\", \"%s\" where not exists(select 1 from rule_test where action=\"%s\" and value=\"%s\");",
-        action.c_str(), action_value.c_str(), action.c_str(), action_value.c_str()
+        "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
+        action_value.c_str(), std::atoi(action.c_str()), get_db().lastRowId()
     );
 
     response << "<!DOCTYPE HTML><html>" << std::endl
