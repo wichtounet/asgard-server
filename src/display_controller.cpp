@@ -40,7 +40,6 @@ ul.menu li:first-child:last-child{border-radius: 10px;}
 .menu, .led{padding: 0px 10px 0px 10px;}
 .button{text-align: center;}
 .rule{display: inline-block;}
-.ruleTable{display: inline-block; margin-right: 50px; text-align: center;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
 border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
 #container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 5px 5px; overflow: hidden;}
@@ -509,23 +508,24 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "</li></ul></FORM></div>" << std::endl
              << "<div class=\"tabs\"><ul>" << std::endl
              << "<li class=\"title\">Actual Rules</li></ul>" << std::endl
-             << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8 class=\"ruleTable\">" << std::endl
-             << "<tr><th colspan=3>Conditions (When)</th></tr>" << std::endl;
+             << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8>" << std::endl
+             << "<tr><th colspan=3>Conditions (When)</th><th colspan=2>Actions (Do)</th></tr>" << std::endl;
 
-    CppSQLite3Query condition_query = get_db().execQuery("select operator, value, fk_sensor, fk_actuator from condition;");
+    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value, fk_sensor, fk_actuator from condition;");
     
     while (!condition_query.eof()) {
-        std::string condition_operator = condition_query.fieldValue(0);
-        std::string condition_value = condition_query.fieldValue(1);
-        int sensor_fk = condition_query.getIntField(2);
-        int actuator_fk = condition_query.getIntField(3);
+        int condition_pk = condition_query.getIntField(0);
+        std::string condition_operator = condition_query.fieldValue(1);
+        std::string condition_value = condition_query.fieldValue(2);
+        int sensor_fk = condition_query.getIntField(3);
+        int actuator_fk = condition_query.getIntField(4);
 
         if(sensor_fk == 0){
             CppSQLite3Query actuator_query = db_exec_query(get_db(), "select name from actuator where pk_sensor=%d;", actuator_fk);
 
             while (!actuator_query.eof()) {
                 std::string actuator_name = actuator_query.fieldValue(0);
-                response << "<tr><td>" << actuator_name << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+                response << "<tr><td>" << actuator_name << "</td><td>" << condition_operator << "</td><td width=\"200px\">" << condition_value << "</td>" << std::endl;
                 actuator_query.nextRow();
             }
 
@@ -535,32 +535,35 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
             while (!sensor_query.eof()) {
                 std::string sensor_name = sensor_query.fieldValue(0);
                 std::string sensor_type = sensor_query.fieldValue(1);
-                response << "<tr><td>" << sensor_name << " (" << sensor_type << ")</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+                response << "<tr><td>" << sensor_name << " (" << sensor_type << ")</td><td>" << condition_operator << "</td><td td width=\"80px\">" << condition_value << "</td>" << std::endl;
                 sensor_query.nextRow();
             }
-
         }
-        condition_query.nextRow();
-    }
 
-    response << "</table><table cellpadding=8 class=\"ruleTable\">" << std::endl
-             << "<tr><th colspan=2>Actions (Do)</th></tr>" << std::endl;
-
-    CppSQLite3Query rule_query = get_db().execQuery("select value, fk_action from rule;");
-    
-    while (!rule_query.eof()) {
-        std::string rule_value = rule_query.fieldValue(0);
-        int action_fk = rule_query.getIntField(1);
+        CppSQLite3Query rule_query = db_exec_query(get_db(), "select value, fk_action from rule where fk_condition=%d;", condition_pk);
         
-        CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", action_fk);
+        while (!rule_query.eof()) {
+            std::string rule_value = rule_query.fieldValue(0);
+            int action_fk = rule_query.getIntField(1);
+            
+            CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", action_fk);
 
-        while (!do_query.eof()) {
-            std::string do_name = do_query.fieldValue(0);
-            std::string do_type = do_query.fieldValue(1);
-            response << "<tr><td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
-            do_query.nextRow();
+            while (!do_query.eof()) {
+                std::string do_name = do_query.fieldValue(0);
+                std::string do_type = do_query.fieldValue(1);
+                if(do_type == "STRING"){
+                    response << "<td>" << do_name << " (" << do_type << ") :</td><td>" << rule_value << "</td></tr>" << std::endl;
+                } else {
+                    response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
+                }
+
+                do_query.nextRow();
+            }
+
+            rule_query.nextRow();
         }
-        rule_query.nextRow();
+
+        condition_query.nextRow();
     }
 
     response << "</table></li></ul></div></div></div>" << std::endl
