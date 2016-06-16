@@ -492,7 +492,6 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
 
-
     CppSQLite3Query action_query = get_db().execQuery("select pk_action, name, type from action order by name;");
     
     while (!action_query.eof()) {
@@ -513,26 +512,55 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8 class=\"ruleTable\">" << std::endl
              << "<tr><th colspan=3>Conditions (When)</th></tr>" << std::endl;
 
-    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value from condition order by pk_condition;");
+    CppSQLite3Query condition_query = get_db().execQuery("select operator, value, fk_sensor, fk_actuator from condition;");
     
     while (!condition_query.eof()) {
-        int condition_pk = condition_query.getIntField(0);
-        std::string condition_operator = condition_query.fieldValue(1);
-        std::string condition_value = condition_query.fieldValue(2);
-        response << "<tr><td>" << condition_pk << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+        std::string condition_operator = condition_query.fieldValue(0);
+        std::string condition_value = condition_query.fieldValue(1);
+        int sensor_fk = condition_query.getIntField(2);
+        int actuator_fk = condition_query.getIntField(3);
+
+        if(sensor_fk == 0){
+            CppSQLite3Query actuator_query = db_exec_query(get_db(), "select name from actuator where pk_sensor=%d;", actuator_fk);
+
+            while (!actuator_query.eof()) {
+                std::string actuator_name = actuator_query.fieldValue(0);
+                response << "<tr><td>" << actuator_name << "</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+                actuator_query.nextRow();
+            }
+
+        } else if (actuator_fk == 0){
+            CppSQLite3Query sensor_query = db_exec_query(get_db(), "select name, type from sensor where pk_sensor=%d;", sensor_fk);
+
+            while (!sensor_query.eof()) {
+                std::string sensor_name = sensor_query.fieldValue(0);
+                std::string sensor_type = sensor_query.fieldValue(1);
+                response << "<tr><td>" << sensor_name << " (" << sensor_type << ")</td><td>" << condition_operator << "</td><td>" << condition_value << "</td></tr>" << std::endl;
+                sensor_query.nextRow();
+            }
+
+        }
         condition_query.nextRow();
     }
 
     response << "</table><table cellpadding=8 class=\"ruleTable\">" << std::endl
              << "<tr><th colspan=2>Actions (Do)</th></tr>" << std::endl;
 
-    CppSQLite3Query rule_query = get_db().execQuery("select pk_rule, value from rule order by;");
+    CppSQLite3Query rule_query = get_db().execQuery("select value, fk_action from rule;");
     
     while (!rule_query.eof()) {
-        int rule_pk = rule_query.getIntField(0);
-        std::string rule_value = rule_query.fieldValue(1);
-        response << "<tr><td>" << rule_pk << "</td><td>" << rule_value << "</td></tr>" << std::endl;
-        do_query.nextRow();
+        std::string rule_value = rule_query.fieldValue(0);
+        int action_fk = rule_query.getIntField(1);
+        
+        CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", action_fk);
+
+        while (!do_query.eof()) {
+            std::string do_name = do_query.fieldValue(0);
+            std::string do_type = do_query.fieldValue(1);
+            response << "<tr><td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
+            do_query.nextRow();
+        }
+        rule_query.nextRow();
     }
 
     response << "</table></li></ul></div></div></div>" << std::endl
