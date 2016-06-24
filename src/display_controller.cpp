@@ -467,7 +467,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         int sensor_pk = sensor_query.getIntField(0);
         std::string sensor_name = sensor_query.fieldValue(1);
         std::string sensor_type = sensor_query.fieldValue(2);
-        response << "<OPTION value=\"s" << sensor_pk << "\">" << sensor_name << "(" << sensor_type << ")" << std::endl;
+        response << "<OPTION value=\"s" << sensor_pk << "\">" << sensor_name << " (" << sensor_type << ")" << std::endl;
         sensor_query.nextRow();
     }
 
@@ -551,12 +551,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
             while (!do_query.eof()) {
                 std::string do_name = do_query.fieldValue(0);
                 std::string do_type = do_query.fieldValue(1);
-                if(do_type == "STRING"){
-                    response << "<td>" << do_name << " (" << do_type << ") :</td><td>" << rule_value << "</td></tr>" << std::endl;
-                } else {
-                    response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
-                }
-
+                response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
                 do_query.nextRow();
             }
 
