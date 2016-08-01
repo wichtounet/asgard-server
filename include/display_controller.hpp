@@ -19,7 +19,9 @@ struct display_controller : public Mongoose::WebController {
     void sensor_script(Mongoose::Request& request, Mongoose::StreamResponse& response);
     void actuator_data(Mongoose::Request& request, Mongoose::StreamResponse& response);
     void actuator_script(Mongoose::Request& request, Mongoose::StreamResponse& response);
-    void display_actions(Mongoose::Request& request, Mongoose::StreamResponse& response);
+    void display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response);
+    void display_rules(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response);
     void action(Mongoose::Request& request, Mongoose::StreamResponse& response);
+    void add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response);
     void setup();
 };

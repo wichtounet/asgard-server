@@ -39,6 +39,7 @@ ul.menu li:first-child:last-child{border-radius: 10px;}
 .myTabs{float: right !important; font-size: 14px;}
 .menu, .led{padding: 0px 10px 0px 10px;}
 .button{text-align: center;}
+.rule{display: inline-block;}
 #header{background-color: lightgray; opacity: 0.8; width: 1020px; height: 65px; margin-top: 20px;
 border-radius: 5px 5px 0px 0px; border: solid black; border-width: 1px 1px 0px 1px;}
 #container{width: 1000px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; border: 1px solid black; border-radius: 0px 0px 5px 5px; overflow: hidden;}
@@ -65,7 +66,9 @@ function load_menu(name) {
 )=====";
 
 void display_controller::display_controller::display_menu(Mongoose::StreamResponse& response) {
-    response << "<ul class=\"menu\"><li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
+    response << "<ul class=\"menu\"><li onclick=\"location.href='/actions'\">Actions Page</li>" << std::endl
+             << "<li onclick=\"location.href='/rules'\">Rules Page</li>" << std::endl
+             << "<li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
              << "<p>Drivers registered :</p>" << std::endl
              << "<ul class=\"menu\">" << std::endl;
 
@@ -420,31 +423,150 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
     }
 }
 
-void display_controller::display_actions(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    response << "<ul>";
+void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    response << header << std::endl
+             << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
+             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Actions Menu</li></ul>" << std::endl
+             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/rules'\">Rules Page</li></ul>" << std::endl
+             << "</div></div>" << std::endl
+             << "<div id=\"main\"><div class=\"tabs\">" << std::endl
+             << "<ul><li class=\"title\">Actions Available</li></ul><ul>" << std::endl;
 
-    for (auto& data : get_db().execQuery("select pk_action, fk_source, name, type from action;")) {
-        int action_pk = data.getIntField(0);
-        int source_pk = data.getIntField(1);
-        std::string action_name = data.fieldValue(2);
-        std::string action_type = data.fieldValue(3);
+    for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
+        int source_pk = data.getIntField(0);
+        std::string action_name = data.fieldValue(1);
+        std::string action_type = data.fieldValue(2);
 
         CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
         std::string source_name = source_query.fieldValue(0);
 
         if (action_type == "SIMPLE") {
-            response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>";
+            response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>" << std::endl;
         } else {
-            response << "<li>" << action_name << "</li>";
+            response << "<li><FORM action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></FORM></li>" << std::endl;
         }
     }
+    response << "</ul></div></div></div>" << std::endl
+             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+}
 
-    response << "</ul>";
+void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    response << header << std::endl
+             << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
+             << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Rules Menu</li></ul>" << std::endl
+             << "<ul class=\"menu\"><li onclick=\"top.location.href='/'\">Main Page</li><li onclick=\"location.href='/actions'\">Actions Page</li></ul>" << std::endl
+             << "</div></div>" << std::endl
+             << "<div id=\"main\"><div class=\"tabs\">" << std::endl
+             << "<ul><li class=\"title\">Add Rules</li></ul><FORM action=\"/addrule\" method=\"GET\">" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
+
+    CppSQLite3Query sensor_query = get_db().execQuery("select pk_sensor, name, type from sensor order by name;");
+
+    while (!sensor_query.eof()) {
+        int sensor_pk = sensor_query.getIntField(0);
+        std::string sensor_name = sensor_query.fieldValue(1);
+        std::string sensor_type = sensor_query.fieldValue(2);
+        response << "<OPTION value=\"s" << sensor_pk << "\">" << sensor_name << " (" << sensor_type << ")" << std::endl;
+        sensor_query.nextRow();
+    }
+
+    CppSQLite3Query actuator_query = get_db().execQuery("select pk_actuator, name from actuator order by name;");
+    
+    while (!actuator_query.eof()) {
+        int actuator_pk = actuator_query.getIntField(0);
+        std::string actuator_name = actuator_query.fieldValue(1);
+        response << "<OPTION value=\"a" << actuator_pk << "\">" << actuator_name << std::endl;
+        actuator_query.nextRow();
+    }
+
+    response << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><SELECT name=\"operator\" size=\"1\">" << std::endl
+             << "<OPTION>=" << std::endl
+             << "<OPTION>>" << std::endl
+             << "<OPTION><" << std::endl
+             << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><input name=\"condition_value\" type=\"text\">" << std::endl
+             << "</div></li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
+             << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
+
+    CppSQLite3Query action_query = get_db().execQuery("select pk_action, name, type from action order by name;");
+    
+    while (!action_query.eof()) {
+        int action_pk = action_query.getIntField(0);
+        std::string action_name = action_query.fieldValue(1);
+        std::string action_type = action_query.fieldValue(2);
+        response << "<OPTION value=\"" << action_pk << "\">" << action_name << " (" << action_type << ")" << std::endl;
+        action_query.nextRow();
+    }
+
+    response << "</SELECT></div>" << std::endl
+             << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
+             << "</div></li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input type=\"submit\">" << std::endl
+             << "</li></ul></FORM></div>" << std::endl
+             << "<div class=\"tabs\"><ul>" << std::endl
+             << "<li class=\"title\">Actual Rules</li></ul>" << std::endl
+             << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8>" << std::endl
+             << "<tr><th colspan=3>Conditions (When)</th><th colspan=2>Actions (Do)</th></tr>" << std::endl;
+
+    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value, fk_sensor, fk_actuator from condition;");
+    
+    while (!condition_query.eof()) {
+        int condition_pk = condition_query.getIntField(0);
+        std::string condition_operator = condition_query.fieldValue(1);
+        std::string condition_value = condition_query.fieldValue(2);
+        int sensor_fk = condition_query.getIntField(3);
+        int actuator_fk = condition_query.getIntField(4);
+
+        if(sensor_fk == 0){
+            CppSQLite3Query actuator_query = db_exec_query(get_db(), "select name from actuator where pk_sensor=%d;", actuator_fk);
+
+            while (!actuator_query.eof()) {
+                std::string actuator_name = actuator_query.fieldValue(0);
+                response << "<tr><td>" << actuator_name << "</td><td>" << condition_operator << "</td><td width=\"200px\">" << condition_value << "</td>" << std::endl;
+                actuator_query.nextRow();
+            }
+
+        } else if (actuator_fk == 0){
+            CppSQLite3Query sensor_query = db_exec_query(get_db(), "select name, type from sensor where pk_sensor=%d;", sensor_fk);
+
+            while (!sensor_query.eof()) {
+                std::string sensor_name = sensor_query.fieldValue(0);
+                std::string sensor_type = sensor_query.fieldValue(1);
+                response << "<tr><td>" << sensor_name << " (" << sensor_type << ")</td><td>" << condition_operator << "</td><td td width=\"80px\">" << condition_value << "</td>" << std::endl;
+                sensor_query.nextRow();
+            }
+        }
+
+        CppSQLite3Query rule_query = db_exec_query(get_db(), "select value, fk_action from rule where fk_condition=%d;", condition_pk);
+        
+        while (!rule_query.eof()) {
+            std::string rule_value = rule_query.fieldValue(0);
+            int action_fk = rule_query.getIntField(1);
+            
+            CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", action_fk);
+
+            while (!do_query.eof()) {
+                std::string do_name = do_query.fieldValue(0);
+                std::string do_type = do_query.fieldValue(1);
+                response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
+                do_query.nextRow();
+            }
+
+            rule_query.nextRow();
+        }
+
+        condition_query.nextRow();
+    }
+
+    response << "</table></li></ul></div></div></div>" << std::endl
+             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
 }
 
 void display_controller::action(Mongoose::Request& request, Mongoose::StreamResponse& response) {
     std::string url = request.getUrl();
-    std::cout << url << std::endl;
 
     auto start_source = url.find("/", 1) + 1;
     auto end_source = url.find("/", start_source);
@@ -460,16 +582,58 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
     if(!source_query.eof()){
         int pk_source = source_query.getIntField(0);
 
-        CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+        CppSQLite3Query action_query = db_exec_query(get_db(), "select type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
+        std::string action_type = action_query.fieldValue(0);
 
         if(!action_query.eof()){
-            int pk_action = action_query.getIntField(0);
-
             auto client_addr = source_addr_from_sql(pk_source);
-
-            send_to_driver(client_addr, "ACTION " + action_name);
+            if(action_type == "SIMPLE"){
+                send_to_driver(client_addr, "ACTION " + action_name);
+            } else {
+                send_to_driver(client_addr, "ACTION " + action_name + " " + request.get("value"));
+            }
         }
     }
+    response << "<!DOCTYPE HTML><html>" << std::endl
+             << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
+             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/actions\"</script>" << std::endl
+             << "<title>Page Redirection</title></head>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/actions'>following link</a>" << std::endl
+             << "</body></html>" << std::endl;
+}
+
+void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    std::string source = request.get("source");
+    std::string symbole = request.get("operator");
+    std::string condition_value = request.get("condition_value");
+
+    if(source[0] == 's'){
+        db_exec_dml(get_db(),
+            "insert into condition(operator,value, fk_sensor) select \"%s\",\"%s\", %d;",
+            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
+        );
+    } else if(source[0] == 'a'){
+        db_exec_dml(get_db(),
+            "insert into condition(operator,value, fk_actuator) select \"%s\",\"%s\", %d;",
+            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
+        );
+    }
+
+    std::string action = request.get("action");
+    std::string action_value = request.get("action_value");
+
+
+    db_exec_dml(get_db(),
+        "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
+        action_value.c_str(), std::atoi(action.c_str()), get_db().lastRowId()
+    );
+
+    response << "<!DOCTYPE HTML><html>" << std::endl
+             << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
+             << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/rules\"</script>" << std::endl
+             << "<title>Page Redirection</title></head>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/rules'>following link</a>" << std::endl
+             << "</body></html>" << std::endl;
 }
 
 //This will be called automatically
@@ -480,13 +644,14 @@ void display_controller::display_controller::setup() {
     addRoute<display_controller>("GET", "/led_off", &display_controller::led_off);
 
     addRoute<display_controller>("GET", "/actions", &display_controller::display_actions);
+    addRoute<display_controller>("GET", "/rules", &display_controller::display_rules);
+    addRoute<display_controller>("GET", "/addrule", &display_controller::add_rule);
 
     //TODO The routes should be added dynamically when we register a new source or sensor or actuator
     //Otherwise the new sensors will not show unless we restart the server
 
     try {
         // Register the sensor data and script pages
-
         for(auto& data : get_db().execQuery("select name, type, pk_sensor from sensor order by name;")){
             std::string sensor_name = data.fieldValue(0);
             std::string sensor_type = data.fieldValue(1);
@@ -504,7 +669,6 @@ void display_controller::display_controller::setup() {
         }
 
         // Register the actuator data and script pages
-
         for(auto& data : get_db().execQuery("select name, pk_actuator from actuator order by name;")){
             std::string url = std::string("/") + data.fieldValue(0);
             int actuator_pk = data.getIntField(1);
@@ -518,7 +682,6 @@ void display_controller::display_controller::setup() {
         }
 
         // Register the action pages
-
         for(auto& data : get_db().execQuery("select name, fk_source from action;")){
             std::string action_name = data.fieldValue(0);
             int fk_source = data.getIntField(1);
