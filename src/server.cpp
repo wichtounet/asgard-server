@@ -136,7 +136,7 @@ void run_rules_engine(){
 
     while (!rule_query.eof()) {
         auto fk_condition = rule_query.getIntField(0);
-        auto fk_action = rule_query.getIntField(0);
+        auto fk_action = rule_query.getIntField(1);
 
         rules.emplace_back(fk_condition, fk_action);
 
