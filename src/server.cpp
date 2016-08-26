@@ -263,12 +263,12 @@ bool handle_command(const std::string& message, int socket_fd) {
             return true;
         }
 
-        db_exec_dml(
-            get_db(), "insert into action(type, name, fk_source) select \"%s\", \"%s\","
-            "%d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
-            action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
+        // Insert the action into the DB if it does not exist already
+        db_exec_dml(get_db(), "insert into action(type, name, fk_source) select \"%s\", \"%s\",% d where not exists(select 1 from action where type=\"%s\" and name=\"%s\");",
+                    action.type.c_str(), action.name.c_str(), source.id_sql, action.type.c_str(), action.name.c_str());
 
-        //TODO Dynamically register the actions
+        // Register the route for the action
+        controller.addRoute<display_controller>("GET", "/action/" + source.name + "/" + action.name, &display_controller::action);
 
         std::cout << "asgard: new action registered " << action.id << " (" << action.type << ") : " << action.name << std::endl;
     } else if (command == "UNREG_ACTION") {
