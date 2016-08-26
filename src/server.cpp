@@ -141,10 +141,12 @@ struct rule {
     size_t pk_rule;
     size_t fk_condition;
     size_t fk_action;
+    size_t system_action;
     std::string value;
     condition* cond;
 
-    rule(size_t pk_rule, size_t fk_condition, size_t fk_action, std::string value) : pk_rule(pk_rule), fk_condition(fk_condition), fk_action(fk_action), value(value), cond(nullptr) {}
+    rule(size_t pk_rule, size_t fk_condition, size_t fk_action, size_t system_action, std::string value)
+        : pk_rule(pk_rule), fk_condition(fk_condition), fk_action(fk_action), system_action(system_action), value(value), cond(nullptr) {}
 
     condition& get_condition(){
         return *cond;
@@ -154,13 +156,14 @@ struct rule {
 std::vector<rule> load_rules(){
     std::vector<rule> rules;
 
-    for(auto& data : get_db().execQuery("select pk_rule, fk_condition, fk_action, value from rule;")){
-        auto pk_rule      = data.getIntField(0);
-        auto fk_condition = data.getIntField(1);
-        auto fk_action    = data.getIntField(2);
-        auto value        = data.fieldValue(3);
+    for(auto& data : get_db().execQuery("select pk_rule, fk_condition, fk_action, system_action, value from rule;")){
+        auto pk_rule       = data.getIntField(0);
+        auto fk_condition  = data.getIntField(1);
+        auto fk_action     = data.getIntField(2);
+        auto system_action = data.getIntField(3);
+        auto value         = data.fieldValue(4);
 
-        rules.emplace_back(pk_rule, fk_condition, fk_action, value);
+        rules.emplace_back(pk_rule, fk_condition, fk_action, system_action, value);
     }
 
     return rules;
@@ -222,29 +225,38 @@ void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
         if(!condition.fk_sensor && condition.fk_actuator == actuator.id_sql){
             std::cout << "asgard: Execute rule " << rule.pk_rule << std::endl;
 
-            // Get the action from the database
+            if(rule.fk_action){
+                // Get the action from the database
 
-            CppSQLite3Query action_query = db_exec_query(get_db(), "select fk_source, type, name from action where pk_action = %d;", rule.fk_action);
+                CppSQLite3Query action_query = db_exec_query(get_db(), "select fk_source, type, name from action where pk_action = %d;", rule.fk_action);
 
-            if(action_query.eof()){
-                std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
-                return;
-            }
+                if(action_query.eof()){
+                    std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
+                    return;
+                }
 
-            auto fk_source          = action_query.getIntField(0);
-            std::string action_type = action_query.fieldValue(1);
-            std::string action_name = action_query.fieldValue(2);
+                auto fk_source          = action_query.getIntField(0);
+                std::string action_type = action_query.fieldValue(1);
+                std::string action_name = action_query.fieldValue(2);
 
-            // Get the client address from the SQL id
+                // Get the client address from the SQL id
 
-            auto client_addr = source_addr_from_sql(fk_source);
+                auto client_addr = source_addr_from_sql(fk_source);
 
-            // Execute the action
+                // Execute the action
 
-            if(action_type == "SIMPLE"){
-                send_to_driver(client_addr, "ACTION " + action_name);
+                if(action_type == "SIMPLE"){
+                    send_to_driver(client_addr, "ACTION " + action_name);
+                } else {
+                    send_to_driver(client_addr, "ACTION " + action_name + " " + rule.value);
+                }
             } else {
-                send_to_driver(client_addr, "ACTION " + action_name + " " + rule.value);
+                // Execute a system action
+
+                if(rule.system_action == 1){
+                    auto time = std::atoi(rule.value.c_str());
+                    std::this_thread::sleep_for(std::chrono::seconds(time));
+                }
             }
         }
     }

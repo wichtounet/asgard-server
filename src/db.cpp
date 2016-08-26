@@ -72,11 +72,11 @@ void create_tables(CppSQLite3DB& db) {
         "create table if not exists actuator_data(pk_actuator_data integer primary key autoincrement, data char(20),"
         "time datetime not null default current_timestamp, fk_actuator integer, foreign key(fk_actuator) references actuator(pk_actuator));");
     db.execDML(
-        "create table if not exists condition(pk_condition integer primary key autoincrement," 
+        "create table if not exists condition(pk_condition integer primary key autoincrement,"
         "value char(20), operator char(20), fk_sensor integer, fk_actuator integer,"
         "foreign key(fk_sensor) references sensor(pk_sensor), foreign key(fk_actuator) references actuator(pk_actuator));");
     db.execDML(
-        "create table if not exists rule(pk_rule integer primary key autoincrement, value char(20), fk_condition integer, fk_action integer,"
+        "create table if not exists rule(pk_rule integer primary key autoincrement, value char(20), fk_condition integer, fk_action integer, system_action integer, "
         "foreign key(fk_condition) references condition(pk_condition), foreign key(fk_action) references action(pk_action));");
 }
 

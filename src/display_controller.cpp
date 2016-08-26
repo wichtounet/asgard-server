@@ -533,8 +533,12 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         int action_pk = data.getIntField(0);
         std::string action_name = data.fieldValue(1);
         std::string action_type = data.fieldValue(2);
-        response << "<OPTION value=\"" << action_pk << "\">" << action_name << " (" << action_type << ")" << std::endl;
+        response << "<OPTION value=\"n" << action_pk << "\">" << action_name << " (" << action_type << ")" << std::endl;
     }
+
+    // Add system actions to the list of actions
+
+    response << "<OPTION value=\"s1\">sleep (system)" << std::endl;
 
     response << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
@@ -548,10 +552,11 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 
     // Fill the table of rules
 
-    for(auto& rule_data : db_exec_query(get_db(), "select fk_condition, fk_action, value from rule;")){
+    for(auto& rule_data : db_exec_query(get_db(), "select fk_condition, fk_action, system_action, value from rule;")){
         int fk_condition = rule_data.getIntField(0);
         int fk_action = rule_data.getIntField(1);
-        std::string rule_value = rule_data.fieldValue(2);
+        int system_action = rule_data.getIntField(2);
+        std::string rule_value = rule_data.fieldValue(3);
 
         CppSQLite3Query condition_query = db_exec_query(get_db(), "select operator, value, fk_sensor, fk_actuator from condition where pk_condition = %d;", fk_condition);
 
@@ -592,16 +597,25 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 
         // Get the action
 
-        CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", fk_action);
+        if(fk_action){
+            CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", fk_action);
 
-        if(do_query.eof()){
-            std::cerr << "Invalid link in database pk_action <> fk_action" << std::endl;
-            break;
+            if(do_query.eof()){
+                std::cerr << "Invalid link in database pk_action <> fk_action" << std::endl;
+                break;
+            }
+
+            std::string do_name = do_query.fieldValue(0);
+            std::string do_type = do_query.fieldValue(1);
+            response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
+        } else if(system_action){
+            if(system_action == 1){
+                response << "<td>sleep (system)</td><td>" << rule_value << "</td></tr>" << std::endl;
+            } else {
+                std::cerr << "Invalid system action: " << system_action << std::endl;
+                break;
+            }
         }
-
-        std::string do_name = do_query.fieldValue(0);
-        std::string do_type = do_query.fieldValue(1);
-        response << "<td>" << do_name << " (" << do_type << ")</td><td>" << rule_value << "</td></tr>" << std::endl;
     }
 
     response << "</table></li></ul></div></div></div>" << std::endl
@@ -652,6 +666,8 @@ void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamRe
     std::string symbole = request.get("operator");
     std::string condition_value = request.get("condition_value");
 
+    // Create the condition in the database
+
     bool valid = true;
     if(source[0] == 's'){
         if (!db_exec_dml(get_db(), "insert into condition(operator, value, fk_sensor) select \"%s\",\"%s\", %d;",
@@ -670,15 +686,30 @@ void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamRe
         valid = false;
     }
 
+    auto condition_pk = get_db().lastRowId();
+
     std::string action = request.get("action");
     std::string action_value = request.get("action_value");
 
     if (valid) {
-        if (!db_exec_dml(get_db(),
-                         "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
-                         action_value.c_str(), std::atoi(action.c_str()), get_db().lastRowId())) {
-            std::cerr << "ERROR: asgard:: Failed to insert into rule" << std::endl;
+        // Handle normal action
+        if(action[0] == 'n'){
+            if (!db_exec_dml(get_db(),
+                    "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
+                    action_value.c_str(), std::atoi(std::string(action.begin() + 1, action.end()).c_str()), condition_pk)) {
+                std::cerr << "ERROR: asgard:: Failed to insert into rule" << std::endl;
+            }
         }
+        // Handle system action
+        else if(action[0] == 's'){
+            if (!db_exec_dml(get_db(),
+                    "insert into rule(value, system_action, fk_condition) select \"%s\", %d, %d ;",
+                    action_value.c_str(), std::atoi(std::string(action.begin() + 1, action.end()).c_str()), condition_pk)) {
+                std::cerr << "ERROR: asgard:: Failed to insert into rule" << std::endl;
+            }
+        }
+    } else {
+        std::cerr << "ERROR: asgard: Invalid action (add_rule)" << std::endl;
     }
 
     response << "<!DOCTYPE HTML><html>" << std::endl
