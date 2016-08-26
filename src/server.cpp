@@ -496,7 +496,9 @@ bool handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
 
-        new_actuator_event(source, actuator);
+        std::thread([&source, &actuator](){
+            new_actuator_event(source, actuator);
+        }).detach();
     }
 
     return true;
