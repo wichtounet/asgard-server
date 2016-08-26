@@ -331,11 +331,9 @@ void display_controller::sensor_script(Mongoose::Request& request, Mongoose::Str
     std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
 
     sensor_type[0] = toupper(sensor_type[0]);
-    CppSQLite3Query sensor_query = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+    CppSQLite3Query sensor_query = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d limit 1;", sensor_pk);
 
     if (!sensor_query.eof()) {
-        std::string sensor_data = sensor_query.fieldValue(0);
-
         auto div_id = sensor_name + sensor_type;
 
         if (sensor_type == "Temperature" || sensor_type == "Humidity") {
@@ -346,13 +344,18 @@ void display_controller::sensor_script(Mongoose::Request& request, Mongoose::Str
                          << "').highcharts({chart: {marginBottom: 60}, title: {text: ''}, xAxis: {categories: [";
 
                 CppSQLite3Query sensor_interval = db_exec_query(
-                    get_db(), "select time from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
+                    get_db(), "select time, data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
 
                 std::string sensor_time;
+                std::string sensor_data_line;
 
                 while (!sensor_interval.eof()) {
                     sensor_time = sensor_interval.fieldValue(0);
                     response << "\"" << sensor_time << "\"" << ",";
+
+                    sensor_data_line +=  sensor_interval.fieldValue(1);
+                    sensor_data_line += ",";
+
                     sensor_interval.nextRow();
                 }
 
@@ -375,14 +378,7 @@ void display_controller::sensor_script(Mongoose::Request& request, Mongoose::Str
 
                 response << "}, series: [{showInLegend: false, name: '" << sensor_name << "', data: [";
 
-                sensor_query = db_exec_query(
-                    get_db(), "select data from sensor_data where time > datetime('now', '-%d hours') and fk_sensor=%d order by time;", interval[i], sensor_pk);
-
-                while (!sensor_query.eof()) {
-                    sensor_data = sensor_query.fieldValue(0);
-                    response << sensor_data << ",";
-                    sensor_query.nextRow();
-                }
+                response << sensor_data_line;
 
                 response << "]}]});" << std::endl;
             }
