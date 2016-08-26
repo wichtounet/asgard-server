@@ -719,17 +719,6 @@ void display_controller::display_controller::setup() {
                 addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
             }
         }
-
-        // Register the action pages
-        for(auto& data : get_db().execQuery("select name, fk_source from action;")){
-            std::string action_name = data.fieldValue(0);
-            int fk_source = data.getIntField(1);
-
-            CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", fk_source);
-            std::string source_name = source_query.fieldValue(0);
-
-            addRoute<display_controller>("GET", "/action/" + source_name + "/" + action_name, &display_controller::action);
-        }
     } catch (CppSQLite3Exception& e){
         std::cerr << e.errorCode() << ":" << e.errorMessage() << std::endl;
     }
