@@ -66,6 +66,8 @@ function load_menu(name) {
 )=====";
 
 void display_controller::display_controller::display_menu(Mongoose::StreamResponse& response) {
+    std::cout << "DEBUG: asgard: Begin rendering menu" << std::endl;
+
     response << "<ul class=\"menu\"><li onclick=\"location.href='/actions'\">Actions Page</li>" << std::endl
              << "<li onclick=\"location.href='/rules'\">Rules Page</li>" << std::endl
              << "<li onclick=\"load_menu('hideable')\">Show All</li></ul>" << std::endl
@@ -111,15 +113,18 @@ void display_controller::display_controller::display_menu(Mongoose::StreamRespon
              << "<li class=\"button\" onclick=\"location.href='/led_off'\">OFF</li></ul>" << std::endl
              << "</div></div>" << std::endl
              << "<div id=\"main\">" << std::endl;
+
+    std::cout << "DEBUG: asgard: End rendering menu" << std::endl;
 }
 
 void display_controller::display_controller::display_sensors(Mongoose::StreamResponse& response) {
+    std::cout << "DEBUG: asgard: Begin rendering sensors" << std::endl;
+
     for (auto& data : get_db().execQuery("select name, type, pk_sensor from sensor order by name;")) {
         std::string sensor_name = data.fieldValue(0);
         std::string sensor_type = data.fieldValue(1);
         int sensor_pk = data.getIntField(2);
-
-        CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_data.eof()) {
             std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
@@ -149,9 +154,13 @@ void display_controller::display_controller::display_sensors(Mongoose::StreamRes
                      << "})</script>" << std::endl;
         }
     }
+
+    std::cout << "DEBUG: asgard: End rendering sensors" << std::endl;
 }
 
 void display_controller::display_controller::display_actuators(Mongoose::StreamResponse& response) {
+    std::cout << "DEBUG: asgard: Begin rendering actuators" << std::endl;
+
     for (auto& data : get_db().execQuery("select name, pk_actuator from actuator order by name;")) {
         std::string actuator_name = data.fieldValue(0);
         int actuator_pk = data.getIntField(1);
@@ -184,9 +193,13 @@ void display_controller::display_controller::display_actuators(Mongoose::StreamR
                      << "})</script>" << std::endl;
         }
     }
+
+    std::cout << "DEBUG: asgard: End rendering actuators" << std::endl;
 }
 
 void display_controller::display_controller::display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
+    std::cout << "DEBUG: asgard: Begin rendering home" << std::endl;
+
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
              << "<div id=\"container\"><div id=\"sidebar\"><div class=\"tabs\" style=\"width: 240px;\">" << std::endl
@@ -220,6 +233,8 @@ void display_controller::display_controller::display(Mongoose::Request& /*reques
 
     response << "</div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+
+    std::cout << "DEBUG: asgard: End rendering home" << std::endl;
 }
 
 void display_controller::led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
@@ -233,6 +248,8 @@ void display_controller::led_off(Mongoose::Request& request, Mongoose::StreamRes
 }
 
 void display_controller::sensor_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    std::cout << "TRACE: asgard: Begin rendering sensor data" << std::endl;
+
     std::string url = request.getUrl();
 
     auto start_name = 1;
@@ -288,9 +305,13 @@ void display_controller::sensor_data(Mongoose::Request& request, Mongoose::Strea
         }
         response << "</div>" << std::endl;
     }
+
+    std::cout << "TRACE: asgard: End rendering sensor data" << std::endl;
 }
 
 void display_controller::sensor_script(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    std::cout << "TRACE: asgard: Begin rendering sensor script" << std::endl;
+
     std::string url = request.getUrl();
 
     auto start_name = 1;
@@ -375,9 +396,13 @@ void display_controller::sensor_script(Mongoose::Request& request, Mongoose::Str
             response << "$('#" << div_id  << "').tabs();" << std::endl;
         }
     }
+
+    std::cout << "TRACE: asgard: End rendering sensor script" << std::endl;
 }
 
 void display_controller::actuator_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    std::cout << "TRACE: asgard: Begin rendering actuator data" << std::endl;
+
     std::string url = request.getUrl();
 
     auto start = url.find_first_not_of("/");
@@ -402,9 +427,13 @@ void display_controller::actuator_data(Mongoose::Request& request, Mongoose::Str
         response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl
                  << "</div>" << std::endl;
     }
+
+    std::cout << "TRACE: asgard: End rendering actuator data" << std::endl;
 }
 
 void display_controller::actuator_script(Mongoose::Request& request, Mongoose::StreamResponse& response) {
+    std::cout << "TRACE: asgard: Begin rendering actuator script" << std::endl;
+
     std::string url = request.getUrl();
 
     auto start = url.find_first_not_of("/");
@@ -421,9 +450,13 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
 
         response << "$('#" << div_id  << "').tabs();" << std::endl;
     }
+
+    std::cout << "TRACE: asgard: End rendering actuator script" << std::endl;
 }
 
 void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    std::cout << "DEBUG: asgard: Begin rendering actions" << std::endl;
+
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
              << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Actions Menu</li></ul>" << std::endl
@@ -448,9 +481,13 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
     }
     response << "</ul></div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+
+    std::cout << "DEBUG: asgard: End rendering actions" << std::endl;
 }
 
 void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    std::cout << "DEBUG: asgard: Begin rendering rules" << std::endl;
+
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
              << "<div id=\"container\"><div class=\"sidebar\"><div class=\"tabs\" style=\"float: left; width: 240px;\"><ul><li class=\"title\">Rules Menu</li></ul>" << std::endl
@@ -472,7 +509,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
     }
 
     CppSQLite3Query actuator_query = get_db().execQuery("select pk_actuator, name from actuator order by name;");
-    
+
     while (!actuator_query.eof()) {
         int actuator_pk = actuator_query.getIntField(0);
         std::string actuator_name = actuator_query.fieldValue(1);
@@ -492,7 +529,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
 
     CppSQLite3Query action_query = get_db().execQuery("select pk_action, name, type from action order by name;");
-    
+
     while (!action_query.eof()) {
         int action_pk = action_query.getIntField(0);
         std::string action_name = action_query.fieldValue(1);
@@ -512,7 +549,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<tr><th colspan=3>Conditions (When)</th><th colspan=2>Actions (Do)</th></tr>" << std::endl;
 
     CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value, fk_sensor, fk_actuator from condition;");
-    
+
     while (!condition_query.eof()) {
         int condition_pk = condition_query.getIntField(0);
         std::string condition_operator = condition_query.fieldValue(1);
@@ -541,11 +578,11 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         }
 
         CppSQLite3Query rule_query = db_exec_query(get_db(), "select value, fk_action from rule where fk_condition=%d;", condition_pk);
-        
+
         while (!rule_query.eof()) {
             std::string rule_value = rule_query.fieldValue(0);
             int action_fk = rule_query.getIntField(1);
-            
+
             CppSQLite3Query do_query = db_exec_query(get_db(), "select name, type from action where pk_action=%d;", action_fk);
 
             while (!do_query.eof()) {
@@ -563,6 +600,8 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 
     response << "</table></li></ul></div></div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+
+    std::cout << "DEBUG: asgard: End rendering rules" << std::endl;
 }
 
 void display_controller::action(Mongoose::Request& request, Mongoose::StreamResponse& response) {

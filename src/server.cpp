@@ -407,6 +407,8 @@ int run(){
     int socket_size = sizeof(struct sockaddr_in);
     int client_socket_fd;
     while((client_socket_fd = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&socket_size))) {
+        std::cout << "DEBUG: asgard: Launch new thread for new connection" << std::endl;
+
         threads.push_back(std::thread(connection_handler, client_socket_fd));
     }
 
