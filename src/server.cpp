@@ -129,8 +129,20 @@ struct rule {
     rule(size_t fk_condition, size_t fk_action) : fk_condition(fk_condition), fk_action(fk_action) {}
 };
 
-void run_rules_engine(){
+struct condition {
+    size_t pk_condition;
+    std::string value;
+    std::string op;
+    size_t fk_sensor;
+    size_t fk_actuator;
+
+    condition(size_t pk_condition, std::string value, std::string op, size_t fk_sensor, size_t fk_actuator)
+        : pk_condition(pk_condition), value(value), op(op), fk_sensor(fk_sensor), fk_actuator(fk_actuator) {}
+};
+
+void new_actuator_event(size_t source_id, size_t actuator_id){
     std::vector<rule> rules;
+    std::vector<condition> conditions;
 
     CppSQLite3Query rule_query = get_db().execQuery("select fk_condition, fk_action from rule;");
 
@@ -143,7 +155,22 @@ void run_rules_engine(){
         rule_query.nextRow();
     }
 
+    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, value, operator, fk_sensor, fk_actuator from condition;");
+
+    while (!condition_query.eof()) {
+        auto pk_condition = condition_query.getIntField(0);
+        auto value = condition_query.fieldValue(1);
+        auto op = condition_query.fieldValue(2);
+        auto fk_sensor = condition_query.getIntField(3);
+        auto fk_actuator = condition_query.getIntField(4);
+
+        conditions.emplace_back(pk_condition, value, op, fk_sensor, fk_actuator);
+
+        condition_query.nextRow();
+    }
+
     std::cout << "asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
+    std::cout << "asgard:rules: Loaded " << conditions.size() << " conditions" << std::endl;
 }
 
 bool handle_command(const std::string& message, int socket_fd) {
@@ -365,7 +392,7 @@ bool handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
 
-        run_rules_engine();
+        new_actuator_event(source_id, actuator_id);
     }
 
     return true;
