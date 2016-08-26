@@ -68,6 +68,8 @@ struct action_t {
 struct actuator_t {
     std::size_t id;
     std::string name;
+
+    std::size_t id_sql;
 };
 
 struct source_t {
@@ -122,13 +124,6 @@ void cleanup() {
     unlink("/tmp/asgard_socket");
 }
 
-struct rule {
-    size_t fk_condition;
-    size_t fk_action;
-
-    rule(size_t fk_condition, size_t fk_action) : fk_condition(fk_condition), fk_action(fk_action) {}
-};
-
 struct condition {
     size_t pk_condition;
     std::string value;
@@ -140,37 +135,107 @@ struct condition {
         : pk_condition(pk_condition), value(value), op(op), fk_sensor(fk_sensor), fk_actuator(fk_actuator) {}
 };
 
-void new_actuator_event(size_t source_id, size_t actuator_id){
+struct rule {
+    size_t pk_rule;
+    size_t fk_condition;
+    size_t fk_action;
+    std::string value;
+    condition* cond;
+
+    rule(size_t pk_rule, size_t fk_condition, size_t fk_action, std::string value) : pk_rule(pk_rule), fk_condition(fk_condition), fk_action(fk_action), value(value), cond(nullptr) {}
+
+    condition& get_condition(){
+        return *cond;
+    }
+};
+
+std::vector<rule> load_rules(){
     std::vector<rule> rules;
+
+    for(auto& data : get_db().execQuery("select pk_rule, fk_condition, fk_action, value from rule;")){
+        auto pk_rule      = data.getIntField(0);
+        auto fk_condition = data.getIntField(1);
+        auto fk_action    = data.getIntField(2);
+        auto value        = data.fieldValue(3);
+
+        rules.emplace_back(pk_rule, fk_condition, fk_action, value);
+    }
+
+    return rules;
+}
+
+std::vector<condition> load_conditions(){
     std::vector<condition> conditions;
 
-    CppSQLite3Query rule_query = get_db().execQuery("select fk_condition, fk_action from rule;");
-
-    while (!rule_query.eof()) {
-        auto fk_condition = rule_query.getIntField(0);
-        auto fk_action = rule_query.getIntField(1);
-
-        rules.emplace_back(fk_condition, fk_action);
-
-        rule_query.nextRow();
-    }
-
-    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, value, operator, fk_sensor, fk_actuator from condition;");
-
-    while (!condition_query.eof()) {
-        auto pk_condition = condition_query.getIntField(0);
-        auto value = condition_query.fieldValue(1);
-        auto op = condition_query.fieldValue(2);
-        auto fk_sensor = condition_query.getIntField(3);
-        auto fk_actuator = condition_query.getIntField(4);
+    for(auto& data : get_db().execQuery("select pk_condition, value, operator, fk_sensor, fk_actuator from condition;")){
+        auto pk_condition = data.getIntField(0);
+        auto value        = data.fieldValue(1);
+        auto op           = data.fieldValue(2);
+        auto fk_sensor    = data.getIntField(3);
+        auto fk_actuator  = data.getIntField(4);
 
         conditions.emplace_back(pk_condition, value, op, fk_sensor, fk_actuator);
-
-        condition_query.nextRow();
     }
 
-    std::cout << "asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
-    std::cout << "asgard:rules: Loaded " << conditions.size() << " conditions" << std::endl;
+    return conditions;
+}
+
+void new_actuator_event(source_t& source, actuator_t& actuator){
+    auto rules      = load_rules();
+    auto conditions = load_conditions();
+
+    for(auto& rule : rules){
+        bool found = false;
+
+        for(auto& condition : conditions){
+            if(condition.pk_condition == rule.fk_condition){
+                rule.cond = &condition;
+                found = true;
+                break;
+            }
+        }
+
+        if(!found){
+            std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
+            return;
+        }
+    }
+
+    std::cout << "DEBUG asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
+    std::cout << "DEBUG asgard:rules: Loaded " << conditions.size() << " conditions" << std::endl;
+
+    for(auto& rule : rules){
+        auto& condition = rule.get_condition();
+
+        if(!condition.fk_sensor && condition.fk_actuator == actuator.id_sql){
+            std::cout << "asgard: Execute rule " << rule.pk_rule << std::endl;
+
+            // Get the action from the database
+
+            CppSQLite3Query action_query = db_exec_query(get_db(), "select fk_source, type, name from action where pk_action = %d;", rule.fk_action);
+
+            if(action_query.eof()){
+                std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
+                return;
+            }
+
+            auto fk_source          = action_query.getIntField(0);
+            std::string action_type = action_query.fieldValue(1);
+            std::string action_name = action_query.fieldValue(2);
+
+            // Get the client address from the SQL id
+
+            auto client_addr = source_addr_from_sql(fk_source);
+
+            // Execute the action
+
+            if(action_type == "SIMPLE"){
+                send_to_driver(client_addr, "ACTION " + action_name);
+            } else {
+                send_to_driver(client_addr, "ACTION " + action_name + " " + rule.value);
+            }
+        }
+    }
 }
 
 bool handle_command(const std::string& message, int socket_fd) {
@@ -313,34 +378,48 @@ bool handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: action unregistered from source " << source_id << " : " << action_id << std::endl;
     } else if (command == "REG_ACTUATOR") {
+        // Get the source
+
         int source_id;
         message_ss >> source_id;
 
         auto& source = select_source(source_id);
+
+        // Create a new actuator
 
         source.actuators.emplace_back();
         auto& actuator = source.actuators.back();
 
         message_ss >> actuator.name;
 
+        // Get the internal ID
+
         actuator.id = source.actuators_counter++;
 
         // Give the sensor id back to the client
+
         auto nbytes = snprintf(write_buffer, 4096, "%d", (int) actuator.id);
         if (!asgard::send_message(socket_fd, write_buffer, nbytes)) {
             std::perror("asgard: server: failed to answer");
             return true;
         }
 
-        if(db_exec_dml(get_db(), "insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");"
-                      , actuator.name.c_str(), source.id_sql, actuator.name.c_str())){
+        // Insert into the database if necessary
 
-            std::string url = "/" + actuator.name;
-            controller.addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
-            controller.addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
-        }
+        db_exec_dml(get_db(), "insert into actuator(name, fk_source) select \"%s\", %d where not exists(select 1 from actuator where name=\"%s\");",
+                    actuator.name.c_str(), source.id_sql, actuator.name.c_str());
 
-        std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << std::endl;
+        // Add the route
+
+        std::string url = "/" + actuator.name;
+        controller.addRoute<display_controller>("GET", url + "/data", &display_controller::actuator_data);
+        controller.addRoute<display_controller>("GET", url + "/script", &display_controller::actuator_script);
+
+        // Get the SQL ID
+
+        actuator.id_sql = db_exec_scalar(get_db(), "select pk_actuator from actuator where name=\"%s\";", actuator.name.c_str());
+
+        std::cout << "asgard: new actuator registered " << actuator.id << " : " << actuator.name << " (sql:" << actuator.id_sql << ")" << std::endl;
     } else if (command == "UNREG_ACTUATOR") {
         int source_id;
         message_ss >> source_id;
@@ -392,7 +471,7 @@ bool handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
 
-        new_actuator_event(source_id, actuator_id);
+        new_actuator_event(source, actuator);
     }
 
     return true;
