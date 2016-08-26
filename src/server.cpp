@@ -186,11 +186,6 @@ void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
     auto time    = std::chrono::steady_clock::now().time_since_epoch();
     auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time);
 
-    //std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()).count() << std::endl;
-
-    //std::cout << time << std::endl;
-    std::cout << "" << (time_ms - actuator.last_event).count() << std::endl;
-
     if((time_ms - actuator.last_event).count() < 1200){
         std::cout << "asgard:rule: Ignore actuator event (too fast) " << actuator.id << std::endl;
         return;
