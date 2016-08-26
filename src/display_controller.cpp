@@ -124,7 +124,8 @@ void display_controller::display_controller::display_sensors(Mongoose::StreamRes
         std::string sensor_name = data.fieldValue(0);
         std::string sensor_type = data.fieldValue(1);
         int sensor_pk = data.getIntField(2);
-CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
+
+        CppSQLite3Query sensor_data = db_exec_query(get_db(), "select data from sensor_data where fk_sensor=%d order by time desc limit 1;", sensor_pk);
 
         if (!sensor_data.eof()) {
             std::transform(sensor_type.begin(), sensor_type.end(), sensor_type.begin(), ::tolower);
