@@ -19,7 +19,8 @@ int db_exec_dml(CppSQLite3DB& db, const std::string& query, T... args){
         buffSQL.format(query.c_str(), args...);
         return db.execDML(buffSQL);
     } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl
+                  << "               query was: " << query << std::endl;
     }
 
     return 0;
@@ -32,7 +33,8 @@ int db_exec_scalar(CppSQLite3DB& db, const std::string& query, T... args){
         buffSQL.format(query.c_str(), args...);
         return db.execScalar(buffSQL);
     } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl
+                  << "               query was: " << query << std::endl;
     }
 
     return -1;
@@ -45,7 +47,8 @@ CppSQLite3Query db_exec_query(CppSQLite3DB& db, const std::string& query, T... a
         buffSQL.format(query.c_str(), args...);
         return db.execQuery(buffSQL);
     } catch (CppSQLite3Exception& e) {
-        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl;
+        std::cerr << "asgard: SQL Query failed: " << e.errorCode() << ":" << e.errorMessage() << std::endl
+                  << "               query was: " << query << std::endl;
     }
 
     return {};

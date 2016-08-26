@@ -143,7 +143,7 @@ void run_rules_engine(){
         rule_query.nextRow();
     }
 
-    std::cout << "asgard:rules: Loaded" << rules.size() << "rules" << std::endl;
+    std::cout << "asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
 }
 
 bool handle_command(const std::string& message, int socket_fd) {

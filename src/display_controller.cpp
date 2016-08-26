@@ -498,7 +498,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li>Condition :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"source\" size=\"1\">" << std::endl;
 
-    CppSQLite3Query sensor_query = get_db().execQuery("select pk_sensor, name, type from sensor order by name;");
+    CppSQLite3Query sensor_query = db_exec_query(get_db(), "select pk_sensor, name, type from sensor order by name;");
 
     while (!sensor_query.eof()) {
         int sensor_pk = sensor_query.getIntField(0);
@@ -508,7 +508,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         sensor_query.nextRow();
     }
 
-    CppSQLite3Query actuator_query = get_db().execQuery("select pk_actuator, name from actuator order by name;");
+    CppSQLite3Query actuator_query = db_exec_query(get_db(), "select pk_actuator, name from actuator order by name;");
 
     while (!actuator_query.eof()) {
         int actuator_pk = actuator_query.getIntField(0);
@@ -528,7 +528,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl
              << "<li><div class=\"rule\"><SELECT name=\"action\" size=\"1\">" << std::endl;
 
-    CppSQLite3Query action_query = get_db().execQuery("select pk_action, name, type from action order by name;");
+    CppSQLite3Query action_query = db_exec_query(get_db(), "select pk_action, name, type from action order by name;");
 
     while (!action_query.eof()) {
         int action_pk = action_query.getIntField(0);
@@ -548,7 +548,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
              << "<ul style=\"list-style-type: none;\"><li><table cellpadding=8>" << std::endl
              << "<tr><th colspan=3>Conditions (When)</th><th colspan=2>Actions (Do)</th></tr>" << std::endl;
 
-    CppSQLite3Query condition_query = get_db().execQuery("select pk_condition, operator, value, fk_sensor, fk_actuator from condition;");
+    CppSQLite3Query condition_query = db_exec_query(get_db(), "select pk_condition, operator, value, fk_sensor, fk_actuator from condition;");
 
     while (!condition_query.eof()) {
         int condition_pk = condition_query.getIntField(0);
@@ -558,11 +558,11 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
         int actuator_fk = condition_query.getIntField(4);
 
         if(sensor_fk == 0){
-            CppSQLite3Query actuator_query = db_exec_query(get_db(), "select name from actuator where pk_sensor=%d;", actuator_fk);
+            CppSQLite3Query actuator_query = db_exec_query(get_db(), "select name from actuator where pk_actuator=%d;", actuator_fk);
 
             while (!actuator_query.eof()) {
                 std::string actuator_name = actuator_query.fieldValue(0);
-                response << "<tr><td>" << actuator_name << "</td><td>" << condition_operator << "</td><td width=\"200px\">" << condition_value << "</td>" << std::endl;
+                response << "<tr><td>" << actuator_name << "</td><td>&nbsp;</td><td width=\"200px\">&nbsp;</td>" << std::endl;
                 actuator_query.nextRow();
             }
 
@@ -646,32 +646,40 @@ void display_controller::add_rule(Mongoose::Request& request, Mongoose::StreamRe
     std::string symbole = request.get("operator");
     std::string condition_value = request.get("condition_value");
 
+    bool valid = true;
     if(source[0] == 's'){
-        db_exec_dml(get_db(),
-            "insert into condition(operator,value, fk_sensor) select \"%s\",\"%s\", %d;",
-            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
-        );
+        if (!db_exec_dml(get_db(), "insert into condition(operator, value, fk_sensor) select \"%s\",\"%s\", %d;",
+                        symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin() + 1, source.end()).c_str()))) {
+            std::cerr << "ERROR: asgard:: Failed to insert into condition (sensor)" << std::endl;
+            valid = false;
+        }
     } else if(source[0] == 'a'){
-        db_exec_dml(get_db(),
-            "insert into condition(operator,value, fk_actuator) select \"%s\",\"%s\", %d;",
-            symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin()+1, source.end()).c_str())
-        );
+        if (!db_exec_dml(get_db(), "insert into condition(operator, value, fk_actuator) select \"%s\",\"%s\", %d;",
+                         symbole.c_str(), condition_value.c_str(), std::atoi(std::string(source.begin() + 1, source.end()).c_str()))) {
+            std::cerr << "ERROR: asgard:: Failed to insert into condition (actuator)" << std::endl;
+            valid = false;
+        }
+    } else {
+        std::cerr << "ERROR: asgard: Invalid source (add_rule)" << std::endl;
+        valid = false;
     }
 
     std::string action = request.get("action");
     std::string action_value = request.get("action_value");
 
-
-    db_exec_dml(get_db(),
-        "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
-        action_value.c_str(), std::atoi(action.c_str()), get_db().lastRowId()
-    );
+    if (valid) {
+        if (!db_exec_dml(get_db(),
+                         "insert into rule(value, fk_action, fk_condition) select \"%s\", %d, %d ;",
+                         action_value.c_str(), std::atoi(action.c_str()), get_db().lastRowId())) {
+            std::cerr << "ERROR: asgard:: Failed to insert into rule" << std::endl;
+        }
+    }
 
     response << "<!DOCTYPE HTML><html>" << std::endl
              << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
              << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/rules\"</script>" << std::endl
              << "<title>Page Redirection</title></head>" << std::endl
-             << "<body>If you are not redirected automatically, follow the <a href='http://192.168.20.161:8080/rules'>following link</a>" << std::endl
+             << "<body>If you are not redirected automatically, follow the <a href='/rules'>following link</a>" << std::endl
              << "</body></html>" << std::endl;
 }
 
