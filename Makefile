@@ -54,7 +54,7 @@ remote_make_run:
 	sshpass -p ${password} scp -p src/*.cpp ${user}@${pi}:${dir}/src/
 	sshpass -p ${password} scp -p include/*.hpp ${user}@${pi}:${dir}/include/
 	sshpass -p ${password} scp -p asgard-lib/include/asgard/*.hpp ${user}@${pi}:${dir}/asgard-lib/include/asgard/
-	sshpass -p ${password} ssh -t ${user}@${pi} "cd ${dir} && make -j4 && make run"
+	sshpass -p ${password} ssh -t ${user}@${pi} "cd ${dir} && make -j4 run"
 
 clean: base_clean
 
