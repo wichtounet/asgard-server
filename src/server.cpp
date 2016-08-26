@@ -122,6 +122,30 @@ void cleanup() {
     unlink("/tmp/asgard_socket");
 }
 
+struct rule {
+    size_t fk_condition;
+    size_t fk_action;
+
+    rule(size_t fk_condition, size_t fk_action) : fk_condition(fk_condition), fk_action(fk_action) {}
+};
+
+void run_rules_engine(){
+    std::vector<rule> rules;
+
+    CppSQLite3Query rule_query = get_db().execQuery("select fk_condition, fk_action from rule;");
+
+    while (!rule_query.eof()) {
+        auto fk_condition = rule_query.getIntField(0);
+        auto fk_action = rule_query.getIntField(0);
+
+        rules.emplace_back(fk_condition, fk_action);
+
+        rule_query.nextRow();
+    }
+
+    std::cout << "asgard:rules: Loaded" << rules.size() << "rules" << std::endl;
+}
+
 bool handle_command(const std::string& message, int socket_fd) {
     std::stringstream message_ss(message);
 
@@ -340,6 +364,8 @@ bool handle_command(const std::string& message, int socket_fd) {
         db_exec_dml(get_db(), "insert into actuator_data (data, fk_actuator) values (\"%s\", %d);", data.c_str(), actuator_pk);
 
         std::cout << "asgard: server: new event: actuator: \"" << actuator.name << "\" : " << data << std::endl;
+
+        run_rules_engine();
     }
 
     return true;
