@@ -401,6 +401,8 @@ int run(){
     //Listen
     listen(socket_desc, 3);
 
+    std::cout << "asgard: server is ready to accept connections..." << std::endl;
+
     //Accept for incoming connection
     int socket_size = sizeof(struct sockaddr_in);
     int client_socket_fd;
