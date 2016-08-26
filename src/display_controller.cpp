@@ -541,7 +541,7 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
     response << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><input name=\"action_value\" type=\"text\">" << std::endl
              << "</div></li></ul>" << std::endl
-             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input type=\"submit\">" << std::endl
+             << "<ul style=\"list-style-type: none; margin-top: 25px;\"><li><input value=\"Create\" type=\"submit\">" << std::endl
              << "</li></ul></FORM></div>" << std::endl
              << "<div class=\"tabs\"><ul>" << std::endl
              << "<li class=\"title\">Actual Rules</li></ul>" << std::endl
