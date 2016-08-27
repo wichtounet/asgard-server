@@ -658,6 +658,13 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
     if(!source_query.eof()){
         int pk_source = source_query.getIntField(0);
 
+        // Make sure the source driver is active
+
+        if(!source_sql_exists(pk_source)){
+            std::cerr << "ERROR: asgard: The source for the action is not active" << std::endl;
+            return;
+        }
+
         CppSQLite3Query action_query = db_exec_query(get_db(), "select type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
 
         if(!action_query.eof()){
