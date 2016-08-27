@@ -524,10 +524,19 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 
     response << "</SELECT></div>" << std::endl
              << "<div class=\"rule\"><SELECT name=\"operator\" size=\"1\">" << std::endl
-             << "<OPTION>=" << std::endl
-             << "<OPTION>>" << std::endl
-             << "<OPTION><" << std::endl
-             << "</SELECT></div>" << std::endl
+             << "<option>==</option>\n"
+             << "<option>!=</option>\n"
+             << "<option>&gt;</option>\n"
+             << "<option>&gt;=</option>\n"
+             << "<option>&lt;</option>\n"
+             << "<option>&lt;=</option>\n"
+             << "<option>== (once)</option>\n"
+             << "<option>!= (once)</option>\n"
+             << "<option>&gt; (once)</option>\n"
+             << "<option>&gt;= (once)</option>\n"
+             << "<option>&lt; (once)</option>\n"
+             << "<option>&lt;= (once)</option>\n"
+             << "</SELECT></div>\n"
              << "<div class=\"rule\"><input name=\"condition_value\" type=\"text\">" << std::endl
              << "</div></li></ul>" << std::endl
              << "<ul style=\"list-style-type: none;\"><li>Action :</li>" << std::endl

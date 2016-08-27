@@ -61,6 +61,9 @@ struct sensor_t {
 
     std::size_t id_sql;
     std::chrono::milliseconds last_event;
+
+    bool first;
+    std::string last_data;
 };
 
 struct action_t {
@@ -294,7 +297,7 @@ void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
     }
 }
 
-void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
+void new_data(sensor_t& sensor, std::string data){
     auto time    = std::chrono::steady_clock::now().time_since_epoch();
     auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time);
 
@@ -303,9 +306,13 @@ void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
         return;
     }
 
+    auto first     = sensor.first;
+    auto last_data = sensor.last_data;
+
     sensor.last_event = time_ms;
 
-    auto data_value = std::atof(data.c_str());
+    auto data_value      = std::atof(data.c_str());
+    auto last_data_value = std::atof(last_data.c_str());
 
     auto rules      = load_rules();
     auto conditions = load_conditions();
@@ -323,16 +330,52 @@ void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
         if(!condition.fk_actuator && condition.fk_sensor == sensor.id_sql){
             auto condition_value = std::atof(condition.value.c_str());
 
-            if(condition.op == "="){
+            if(condition.op == "=="){
                 if(data_value == condition_value){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "!="){
+                if(data_value != condition_value){
                     execute_rule(rule);
                 }
             } else if(condition.op == ">"){
                 if(data_value > condition_value){
                     execute_rule(rule);
                 }
+            } else if(condition.op == ">="){
+                if(data_value >= condition_value){
+                    execute_rule(rule);
+                }
             } else if(condition.op == "<"){
                 if(data_value < condition_value){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "<="){
+                if(data_value <= condition_value){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "== (once)"){
+                if(data_value == condition_value && (first || !(last_data_value == condition_value))){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "!= (once)"){
+                if(data_value != condition_value && (first || !(last_data_value != condition_value))){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "> (once)"){
+                if(data_value > condition_value && (first || !(last_data_value > condition_value))){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == ">= (once)"){
+                if(data_value >= condition_value && (first || !(last_data_value >= condition_value))){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "< (once)"){
+                if(data_value < condition_value && (first || !(last_data_value < condition_value))){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "<= (once)"){
+                if(data_value <= condition_value && (first || !(last_data_value <= condition_value))){
                     execute_rule(rule);
                 }
             } else {
@@ -340,6 +383,9 @@ void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
             }
         }
     }
+
+    sensor.last_data = data;
+    sensor.first = false;
 }
 
 bool handle_command(const std::string& message, int socket_fd) {
@@ -399,6 +445,8 @@ bool handle_command(const std::string& message, int socket_fd) {
         source.sensors.emplace_back();
         auto& sensor      = source.sensors.back();
         sensor.last_event = std::chrono::milliseconds::zero();
+        sensor.last_data  = "";
+        sensor.first      = true;
 
         message_ss >> sensor.type;
         message_ss >> sensor.name;
@@ -563,8 +611,8 @@ bool handle_command(const std::string& message, int socket_fd) {
 
         std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
 
-        std::thread([&source, &sensor, &data](){
-            new_data(source, sensor, data);
+        std::thread([&sensor, data](){
+            new_data(sensor, data);
         }).detach();
     } else if (command == "EVENT") {
         int source_id;
