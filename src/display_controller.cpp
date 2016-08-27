@@ -642,6 +642,8 @@ void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose:
 void display_controller::action(Mongoose::Request& request, Mongoose::StreamResponse& response) {
     std::string url = request.getUrl();
 
+    std::cout << "DEBUG: asgard: start executing action: " << url << std::endl;
+
     auto start_source = url.find("/", 1) + 1;
     auto end_source = url.find("/", start_source);
 
@@ -657,17 +659,23 @@ void display_controller::action(Mongoose::Request& request, Mongoose::StreamResp
         int pk_source = source_query.getIntField(0);
 
         CppSQLite3Query action_query = db_exec_query(get_db(), "select type from action where name=\"%s\" and fk_source=%d;", action_name.c_str(), pk_source);
-        std::string action_type = action_query.fieldValue(0);
 
         if(!action_query.eof()){
+            std::string action_type = action_query.fieldValue(0);
+
             auto client_addr = source_addr_from_sql(pk_source);
             if(action_type == "SIMPLE"){
                 send_to_driver(client_addr, "ACTION " + action_name);
             } else {
                 send_to_driver(client_addr, "ACTION " + action_name + " " + request.get("value"));
             }
+        } else {
+            std::cerr << "ERROR: asgard: Cannot find action in DB for name= " << action_name << " and fk_source=" << pk_source << std::endl;
         }
+    } else {
+        std::cerr << "ERROR: asgard: Cannot find source in DB for name= " << source_name << std::endl;
     }
+
     response << "<!DOCTYPE HTML><html>" << std::endl
              << "<head><meta charset=\"UTF-8\"><meta http-equiv=\"refresh\">" << std::endl
              << "<script type=\"text/javascript\">window.location.href=\"http://192.168.20.161:8080/actions\"</script>" << std::endl
