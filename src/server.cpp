@@ -111,16 +111,6 @@ source_t& select_source(std::size_t source_id) {
     return sources.front();
 }
 
-bool source_sql_exists(std::size_t source_id) {
-    for (auto& source : sources) {
-        if (source.id_sql == source_id) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 source_t& select_source_from_sql(std::size_t source_id) {
     for (auto& source : sources) {
         if (source.id_sql == source_id) {
@@ -703,6 +693,16 @@ void terminate(int /*signo*/) {
 int source_addr_from_sql(int id_sql){
     auto& source = select_source_from_sql(id_sql);
     return source.socket;
+}
+
+bool source_sql_exists(std::size_t source_id) {
+    for (auto& source : sources) {
+        if (source.id_sql == source_id) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool send_to_driver(int client_address, const std::string& message){

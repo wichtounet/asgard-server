@@ -8,6 +8,7 @@
 #include<sys/socket.h>
 #include<sys/un.h>
 
+bool source_sql_exists(std::size_t source_id);
 int source_addr_from_sql(int id_sql);
 
 bool send_to_driver(int client_address, const std::string& message);
