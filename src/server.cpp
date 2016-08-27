@@ -58,6 +58,9 @@ struct sensor_t {
     std::size_t id;
     std::string type;
     std::string name;
+
+    std::size_t id_sql;
+    std::chrono::milliseconds last_event;
 };
 
 struct action_t {
@@ -103,6 +106,16 @@ source_t& select_source(std::size_t source_id) {
     std::cerr << "asgard: server: Invalid request for source id " << source_id << std::endl;
 
     return sources.front();
+}
+
+bool source_sql_exists(std::size_t source_id) {
+    for (auto& source : sources) {
+        if (source.id_sql == source_id) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 source_t& select_source_from_sql(std::size_t source_id) {
@@ -185,6 +198,72 @@ std::vector<condition> load_conditions(){
     return conditions;
 }
 
+bool bind_rules(std::vector<rule>& rules, std::vector<condition>& conditions){
+    for(auto& rule : rules){
+        bool found = false;
+
+        for(auto& condition : conditions){
+            if(condition.pk_condition == rule.fk_condition){
+                rule.cond = &condition;
+                found = true;
+                break;
+            }
+        }
+
+        if(!found){
+            std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void execute_rule(rule& rule){
+    std::cout << "asgard: Execute rule " << rule.pk_rule << std::endl;
+
+    if(rule.fk_action){
+        // Get the action from the database
+
+        CppSQLite3Query action_query = db_exec_query(get_db(), "select fk_source, type, name from action where pk_action = %d;", rule.fk_action);
+
+        if(action_query.eof()){
+            std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
+            return;
+        }
+
+        auto fk_source          = action_query.getIntField(0);
+        std::string action_type = action_query.fieldValue(1);
+        std::string action_name = action_query.fieldValue(2);
+
+        // Make sure the driver is active
+
+        if(!source_sql_exists(fk_source)){
+            std::cerr << "ERROR: asgard: The source for the action is not active" << std::endl;
+            return;
+        }
+
+        // Get the client address from the SQL id
+
+        auto client_addr = source_addr_from_sql(fk_source);
+
+        // Execute the action
+
+        if(action_type == "SIMPLE"){
+            send_to_driver(client_addr, "ACTION " + action_name);
+        } else {
+            send_to_driver(client_addr, "ACTION " + action_name + " " + rule.value);
+        }
+    } else {
+        // Execute a system action
+
+        if(rule.system_action == 1){
+            auto time = std::atoi(rule.value.c_str());
+            std::this_thread::sleep_for(std::chrono::seconds(time));
+        }
+    }
+}
+
 void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
     auto time    = std::chrono::steady_clock::now().time_since_epoch();
     auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time);
@@ -199,21 +278,8 @@ void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
     auto rules      = load_rules();
     auto conditions = load_conditions();
 
-    for(auto& rule : rules){
-        bool found = false;
-
-        for(auto& condition : conditions){
-            if(condition.pk_condition == rule.fk_condition){
-                rule.cond = &condition;
-                found = true;
-                break;
-            }
-        }
-
-        if(!found){
-            std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
-            return;
-        }
+    if(!bind_rules(rules, conditions)){
+        return;
     }
 
     std::cout << "DEBUG asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
@@ -223,40 +289,56 @@ void new_actuator_event(source_t& /*source*/, actuator_t& actuator){
         auto& condition = rule.get_condition();
 
         if(!condition.fk_sensor && condition.fk_actuator == actuator.id_sql){
-            std::cout << "asgard: Execute rule " << rule.pk_rule << std::endl;
+            execute_rule(rule);
+        }
+    }
+}
 
-            if(rule.fk_action){
-                // Get the action from the database
+void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
+    auto time    = std::chrono::steady_clock::now().time_since_epoch();
+    auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time);
 
-                CppSQLite3Query action_query = db_exec_query(get_db(), "select fk_source, type, name from action where pk_action = %d;", rule.fk_action);
+    if((time_ms - sensor.last_event).count() < 750){
+        std::cout << "asgard:rule: Ignore sensor event (too fast) " << sensor.id << std::endl;
+        return;
+    }
 
-                if(action_query.eof()){
-                    std::cerr << "ERROR: asgard: Invalid link in database pk_condition <> fk_condition" << std::endl;
-                    return;
+    sensor.last_event = time_ms;
+
+    auto data_value = std::atof(data.c_str());
+
+    auto rules      = load_rules();
+    auto conditions = load_conditions();
+
+    if(!bind_rules(rules, conditions)){
+        return;
+    }
+
+    std::cout << "DEBUG asgard:rules: Loaded " << rules.size() << " rules" << std::endl;
+    std::cout << "DEBUG asgard:rules: Loaded " << conditions.size() << " conditions" << std::endl;
+
+    for(auto& rule : rules){
+        auto& condition = rule.get_condition();
+
+        if(!condition.fk_actuator && condition.fk_sensor == sensor.id_sql){
+            std::cout << "asgard: Test rule " << rule.pk_rule << std::endl;
+
+            auto condition_value = std::atof(condition.value.c_str());
+
+            if(condition.op == "="){
+                if(data_value == condition_value){
+                    execute_rule(rule);
                 }
-
-                auto fk_source          = action_query.getIntField(0);
-                std::string action_type = action_query.fieldValue(1);
-                std::string action_name = action_query.fieldValue(2);
-
-                // Get the client address from the SQL id
-
-                auto client_addr = source_addr_from_sql(fk_source);
-
-                // Execute the action
-
-                if(action_type == "SIMPLE"){
-                    send_to_driver(client_addr, "ACTION " + action_name);
-                } else {
-                    send_to_driver(client_addr, "ACTION " + action_name + " " + rule.value);
+            } else if(condition.op == ">"){
+                if(data_value > condition_value){
+                    execute_rule(rule);
+                }
+            } else if(condition.op == "<"){
+                if(data_value < condition_value){
+                    execute_rule(rule);
                 }
             } else {
-                // Execute a system action
-
-                if(rule.system_action == 1){
-                    auto time = std::atoi(rule.value.c_str());
-                    std::this_thread::sleep_for(std::chrono::seconds(time));
-                }
+                std::cerr << "ERROR asgard: Invalid condition operator " << condition.op << std::endl;
             }
         }
     }
@@ -317,7 +399,8 @@ bool handle_command(const std::string& message, int socket_fd) {
         auto& source = select_source(source_id);
 
         source.sensors.emplace_back();
-        auto& sensor = source.sensors.back();
+        auto& sensor      = source.sensors.back();
+        sensor.last_event = std::chrono::milliseconds::zero();
 
         message_ss >> sensor.type;
         message_ss >> sensor.name;
@@ -342,6 +425,10 @@ bool handle_command(const std::string& message, int socket_fd) {
             controller.addRoute<display_controller>("GET", url + "/data", &display_controller::sensor_data);
             controller.addRoute<display_controller>("GET", url + "/script", &display_controller::sensor_script);
         }
+
+        // Get the SQL ID
+
+        sensor.id_sql = db_exec_scalar(get_db(), "select pk_sensor from sensor where name=\"%s\";", sensor.name.c_str());
 
         std::cout << "asgard: new sensor registered " << sensor.id << " (" << sensor.type << ") : " << sensor.name << std::endl;
     } else if (command == "UNREG_SENSOR") {
@@ -477,6 +564,10 @@ bool handle_command(const std::string& message, int socket_fd) {
         db_exec_dml(get_db(), "insert into sensor_data (data, fk_sensor) values (\"%s\", %d);", data.c_str(), sensor_pk);
 
         std::cout << "asgard: server: new data: sensor(" << sensor.type << "): \"" << sensor.name << "\" : " << data << std::endl;
+
+        std::thread([&source, &sensor, &data](){
+            new_data(source, sensor, data);
+        }).detach();
     } else if (command == "EVENT") {
         int source_id;
         message_ss >> source_id;
