@@ -150,7 +150,7 @@ void display_controller::display_controller::display_sensors(Mongoose::StreamRes
                      << "$.getScript(\"" << url_script << "\");" << std::endl
                      << "});}" << std::endl
 
-                     << "}, 10000);" << std::endl
+                     << "}, 20000);" << std::endl
 
                      << "})</script>" << std::endl;
         }
@@ -189,7 +189,7 @@ void display_controller::display_controller::display_actuators(Mongoose::StreamR
                      << "$.getScript(\"" << url_script << "\");" << std::endl
                      << "});}" << std::endl
 
-                     << "}, 10000);" << std::endl
+                     << "}, 20000);" << std::endl
 
                      << "})</script>" << std::endl;
         }
