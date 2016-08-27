@@ -708,6 +708,8 @@ bool source_sql_exists(std::size_t source_id) {
 bool send_to_driver(int client_address, const std::string& message){
     auto nbytes = snprintf(write_buffer, 4096, "%s", message.c_str());
 
+    std::cout << "DEBUG: asgard: Send message to driver (fd:" << client_address << "): " << message << std::endl;
+
     if (!asgard::send_message(client_address, write_buffer, nbytes)) {
         std::perror("asgard: server: failed to send message");
         return false;
