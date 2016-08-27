@@ -463,21 +463,30 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
              << "<ul><li class=\"title\">Actions Available</li></ul><ul>" << std::endl;
 
     for (auto& data : get_db().execQuery("select fk_source, name, type from action;")) {
-        int source_pk = data.getIntField(0);
+        int source_pk           = data.getIntField(0);
         std::string action_name = data.fieldValue(1);
         std::string action_type = data.fieldValue(2);
 
-        CppSQLite3Query source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
-        std::string source_name = source_query.fieldValue(0);
+        auto source_query = db_exec_query(get_db(), "select name from source where pk_source=%d;", source_pk);
+        auto source_name  = source_query.fieldValue(0);
+
+        auto action_path       = std::string("/action/") + source_name + "/" + action_name;
+        auto action_descriptor = std::string(source_name) + ":" + action_name;
+
+        response << "\n<li>";
 
         if (action_type == "SIMPLE") {
-            response << "<li><a href=/action/" << source_name << "/" << action_name << ">" << action_name << "</a></li>" << std::endl;
+            response << "<form action=\"" << action_path << "\" method=\"GET\">" << action_descriptor << " : <input type=\"submit\" value=\"Execute\"></form>";
         } else {
-            response << "<li><FORM action=\"/action/" << source_name << "/" << action_name << "\" method=\"GET\">" << action_name << " : <input name=\"value\" type=\"text\"><input type=\"submit\"></FORM></li>" << std::endl;
+            // For STRING actions, use a input
+            response << "<form action=\"" << action_path << "\" method=\"GET\">" << action_descriptor << " : <input name=\"value\" type=\"text\"><input type=\"submit\" value=\"Execute\"></form>";
         }
+
+        response << "</li>\n";
     }
-    response << "</ul></div></div></div>" << std::endl
-             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
+
+    response << "</ul></div></div></div>\n"
+             << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>";
 
     std::cout << "DEBUG: asgard: End rendering actions" << std::endl;
 }
