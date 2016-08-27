@@ -321,8 +321,6 @@ void new_data(source_t& /*source*/, sensor_t& sensor, const std::string& data){
         auto& condition = rule.get_condition();
 
         if(!condition.fk_actuator && condition.fk_sensor == sensor.id_sql){
-            std::cout << "asgard: Test rule " << rule.pk_rule << std::endl;
-
             auto condition_value = std::atof(condition.value.c_str());
 
             if(condition.op == "="){
