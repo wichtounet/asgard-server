@@ -6,6 +6,7 @@
 //=======================================================================
 
 #include<algorithm>
+#include<chrono>
 
 #include "display_controller.hpp"
 #include "db.hpp"
@@ -64,6 +65,28 @@ function load_menu(name) {
 </head>
 <body>
 )=====";
+
+namespace {
+
+struct request_timer {
+    std::string name;
+    std::chrono::steady_clock::time_point start_time;
+
+    request_timer(const std::string& name) : name(name) {
+        start_time = std::chrono::steady_clock::now();
+
+        std::cout << "DEBUG: asgard: Start rendering " << name << std::endl;
+    }
+
+    ~request_timer(){
+        auto end_time = std::chrono::steady_clock::now();
+        auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(start_time - end_time).count();
+
+        std::cout << "DEBUG: asgard: Finished rendering " << name << " in" << time_ms << "ms" << std::endl;
+    }
+};
+
+} // end of anoymous namespace
 
 void display_controller::display_controller::display_menu(Mongoose::StreamResponse& response) {
     std::cout << "DEBUG: asgard: Begin rendering menu" << std::endl;
@@ -199,7 +222,7 @@ void display_controller::display_controller::display_actuators(Mongoose::StreamR
 }
 
 void display_controller::display_controller::display(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response){
-    std::cout << "DEBUG: asgard: Begin rendering home" << std::endl;
+    request_timer timer("home");
 
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
@@ -234,8 +257,6 @@ void display_controller::display_controller::display(Mongoose::Request& /*reques
 
     response << "</div></div>" << std::endl
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>" << std::endl;
-
-    std::cout << "DEBUG: asgard: End rendering home" << std::endl;
 }
 
 void display_controller::led_on(Mongoose::Request& request, Mongoose::StreamResponse& response) {
@@ -249,7 +270,7 @@ void display_controller::led_off(Mongoose::Request& request, Mongoose::StreamRes
 }
 
 void display_controller::sensor_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::cout << "TRACE: asgard: Begin rendering sensor data" << std::endl;
+    request_timer timer("sensor_data");
 
     std::string url = request.getUrl();
 
@@ -306,12 +327,10 @@ void display_controller::sensor_data(Mongoose::Request& request, Mongoose::Strea
         }
         response << "</div>" << std::endl;
     }
-
-    std::cout << "TRACE: asgard: End rendering sensor data" << std::endl;
 }
 
 void display_controller::sensor_script(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::cout << "TRACE: asgard: Begin rendering sensor script" << std::endl;
+    request_timer timer("sensor_script");
 
     std::string url = request.getUrl();
 
@@ -393,12 +412,10 @@ void display_controller::sensor_script(Mongoose::Request& request, Mongoose::Str
             response << "$('#" << div_id  << "').tabs();" << std::endl;
         }
     }
-
-    std::cout << "TRACE: asgard: End rendering sensor script" << std::endl;
 }
 
 void display_controller::actuator_data(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::cout << "TRACE: asgard: Begin rendering actuator data" << std::endl;
+    request_timer timer("actuator_data");
 
     std::string url = request.getUrl();
 
@@ -424,12 +441,10 @@ void display_controller::actuator_data(Mongoose::Request& request, Mongoose::Str
         response << "<li>Number of Inputs : " << nbClicks << "</li></ul>" << std::endl
                  << "</div>" << std::endl;
     }
-
-    std::cout << "TRACE: asgard: End rendering actuator data" << std::endl;
 }
 
 void display_controller::actuator_script(Mongoose::Request& request, Mongoose::StreamResponse& response) {
-    std::cout << "TRACE: asgard: Begin rendering actuator script" << std::endl;
+    request_timer timer("actuator_script");
 
     std::string url = request.getUrl();
 
@@ -447,12 +462,10 @@ void display_controller::actuator_script(Mongoose::Request& request, Mongoose::S
 
         response << "$('#" << div_id  << "').tabs();" << std::endl;
     }
-
-    std::cout << "TRACE: asgard: End rendering actuator script" << std::endl;
 }
 
 void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
-    std::cout << "DEBUG: asgard: Begin rendering actions" << std::endl;
+    request_timer timer("actions");
 
     response << header << std::endl
              << "<div id=\"header\"><center><h2>Asgard - Home Automation System</h2></center></div>" << std::endl
@@ -487,11 +500,11 @@ void display_controller::display_actions(Mongoose::Request& /*request*/, Mongoos
 
     response << "</ul></div></div></div>\n"
              << "<div id=\"footer\">© 2015-2016 Asgard Team. All Rights Reserved.</div></body></html>";
-
-    std::cout << "DEBUG: asgard: End rendering actions" << std::endl;
 }
 
 void display_controller::display_rules(Mongoose::Request& /*request*/, Mongoose::StreamResponse& response) {
+    request_timer timer("rules");
+
     std::cout << "DEBUG: asgard: Begin rendering rules" << std::endl;
 
     response << header << std::endl
