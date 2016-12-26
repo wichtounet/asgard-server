@@ -80,7 +80,7 @@ struct request_timer {
 
     ~request_timer(){
         auto end_time = std::chrono::steady_clock::now();
-        auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(start_time - end_time).count();
+        auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
 
         std::cout << "DEBUG: asgard: Finished rendering " << name << " in" << time_ms << "ms" << std::endl;
     }
