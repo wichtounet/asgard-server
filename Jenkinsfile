@@ -3,7 +3,9 @@ pipeline {
 
     stages {
         stage ('git'){
-            checkout scm
+            steps {
+                checkout scm
+            }
         }
 
         stage ('pre-analysis') {
